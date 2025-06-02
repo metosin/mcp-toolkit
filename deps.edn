@@ -1,0 +1,6 @@
+{:paths ["src"]
+
+ :deps {;org.clojure/core.async {:mvn/version "1.8.741"}
+        metosin/jsonista       {:mvn/version "0.3.13"}
+        taipei.404/mate        {:mvn/version "0.0.9"}
+        funcool/promesa        {:mvn/version "11.0.678"}}}

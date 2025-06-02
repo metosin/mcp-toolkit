@@ -1,0 +1,8 @@
+services:
+  mcp:
+    build: .
+    volumes:
+      - .:/app
+    working_dir: /app/example-server
+    ports:
+      - "7925:7925"
