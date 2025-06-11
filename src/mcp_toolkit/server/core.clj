@@ -245,6 +245,14 @@
     (swap! session assoc :resource-uri-complete-fn resource-uri-complete-fn))
   nil)
 
+(defn request-sampling
+  "Returns a promise, either resolved with the result or rejected with the error."
+  [context params]
+  (let [{:keys [session]} context]
+    (when (contains? (:client-capabilities @session) :sampling)
+      (handler/call-remote-method context {:method "sampling/createMessage"
+                                           :params params}))))
+
 (defn send-log-data [context level logger data]
   (let [{:keys [session send-message]} context
         client-logging-level (:client-logging-level @session)]
