@@ -190,28 +190,21 @@
 
 ;; --- Typically called by hand from a REPL session
 
-(defn add-prompt [context prompt]
-  (let [{:keys [session send-message]} context]
-    (swap! session update :prompt-by-name assoc (:name prompt) prompt)
+(defn notify-prompts-updated [context]
+  (let [{:keys [send-message]} context]
     (send-message (json-rpc/notification "prompt/list_changed")))
+  nil)
+
+(defn add-prompt [context prompt]
+  (let [{:keys [session]} context]
+    (swap! session update :prompt-by-name assoc (:name prompt) prompt)
+    (notify-prompts-updated context))
   nil)
 
 (defn remove-prompt [context prompt]
-  (let [{:keys [session send-message]} context]
+  (let [{:keys [session]} context]
     (swap! session update :prompt-by-name dissoc (:name prompt))
-    (send-message (json-rpc/notification "prompt/list_changed")))
-  nil)
-
-(defn add-resource [context resource]
-  (let [{:keys [session send-message]} context]
-    (swap! session update :resource-by-uri assoc (:uri resource) resource)
-    (send-message (json-rpc/notification "resources/list_changed")))
-  nil)
-
-(defn remove-resource [context resource]
-  (let [{:keys [session send-message]} context]
-    (swap! session update :resource-by-uri dissoc (:uri resource))
-    (send-message (json-rpc/notification "resources/list_changed")))
+    (notify-prompts-updated context))
   nil)
 
 (defn notify-resource-updated [context resource]
@@ -223,16 +216,38 @@
                                            {:uri uri}))))
   nil)
 
-(defn add-tool [context tool]
-  (let [{:keys [session send-message]} context]
-    (swap! session update :tool-by-name assoc (:name tool) tool)
+(defn notify-resources-updated [context]
+  (let [{:keys [send-message]} context]
+    (send-message (json-rpc/notification "resources/list_changed")))
+  nil)
+
+(defn add-resource [context resource]
+  (let [{:keys [session]} context]
+    (swap! session update :resource-by-uri assoc (:uri resource) resource)
+    (notify-resources-updated context))
+  nil)
+
+(defn remove-resource [context resource]
+  (let [{:keys [session]} context]
+    (swap! session update :resource-by-uri dissoc (:uri resource))
+    (notify-resources-updated context))
+  nil)
+
+(defn notify-tools-updated [context]
+  (let [{:keys [send-message]} context]
     (send-message (json-rpc/notification "tools/list_changed")))
   nil)
 
+(defn add-tool [context tool]
+  (let [{:keys [session]} context]
+    (swap! session update :tool-by-name assoc (:name tool) tool)
+    (notify-tools-updated context))
+  nil)
+
 (defn remove-tool [context tool]
-  (let [{:keys [session send-message]} context]
+  (let [{:keys [session]} context]
     (swap! session update :tool-by-name dissoc (:name tool))
-    (send-message (json-rpc/notification "tools/list_changed")))
+    (notify-tools-updated context))
   nil)
 
 (defn set-resource-templates [context resource-templates]
