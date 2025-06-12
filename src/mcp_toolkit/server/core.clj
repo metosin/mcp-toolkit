@@ -7,16 +7,6 @@
   (:import (clojure.lang LineNumberingPushbackReader)
            (java.io OutputStreamWriter)))
 
-(def ^:private log-level->importance
-  {"debug"     0
-   "info"      1
-   "notice"    2
-   "warning"   3
-   "error"     4
-   "critical"  5
-   "alert"     6
-   "emergency" 7})
-
 (defn create-session
   "Returns the state of a newly created session inside an atom."
   [{:keys [server-info
@@ -179,7 +169,9 @@
      :send-message send-message
      :read-message read-message}))
 
-;; --- Typically called from a tool-fn
+;;
+;; Functions typically called from a prompt-fn or a tool-fn
+;;
 
 (defn notify-progress [context progress]
   (let [{:keys [message send-message]} context]
@@ -188,7 +180,36 @@
                                            (-> {:progressToken progress-token}
                                                (into progress)))))))
 
-;; --- Typically called by hand from a REPL session
+(def ^:private log-level->importance
+  {"debug"     0
+   "info"      1
+   "notice"    2
+   "warning"   3
+   "error"     4
+   "critical"  5
+   "alert"     6
+   "emergency" 7})
+
+(defn send-log-data [context level logger data]
+  (let [{:keys [session send-message]} context
+        client-logging-level (:client-logging-level @session)]
+    (when (>= (log-level->importance level -1) (log-level->importance client-logging-level))
+      (send-message (json-rpc/notification "message"
+                                           {:level level
+                                            :logger logger
+                                            :data data})))))
+
+(defn request-sampling
+  "Returns a promise, either resolved with the result or rejected with the error."
+  [context params]
+  (let [{:keys [session]} context]
+    (when (contains? (:client-capabilities @session) :sampling)
+      (handler/call-remote-method context {:method "sampling/createMessage"
+                                           :params params}))))
+
+;;
+;; Functions typically called by hand from a REPL session while working on MCP tooling
+;;
 
 (defn notify-prompts-updated [context]
   (let [{:keys [send-message]} context]
@@ -259,20 +280,3 @@
   (let [{:keys [session]} context]
     (swap! session assoc :resource-uri-complete-fn resource-uri-complete-fn))
   nil)
-
-(defn request-sampling
-  "Returns a promise, either resolved with the result or rejected with the error."
-  [context params]
-  (let [{:keys [session]} context]
-    (when (contains? (:client-capabilities @session) :sampling)
-      (handler/call-remote-method context {:method "sampling/createMessage"
-                                           :params params}))))
-
-(defn send-log-data [context level logger data]
-  (let [{:keys [session send-message]} context
-        client-logging-level (:client-logging-level @session)]
-    (when (>= (log-level->importance level -1) (log-level->importance client-logging-level))
-      (send-message (json-rpc/notification "message"
-                                           {:level level
-                                            :logger logger
-                                            :data data})))))
