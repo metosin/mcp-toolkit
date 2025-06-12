@@ -9,6 +9,26 @@ Status: **"work in progress"**
 
 Tested on Claude Desktop and Claude Code, no problems found for the features implemented.
 
+## Implemented features
+
+- [ ] CLJC
+- [x] Server API
+  - Stdio connection with an external MCP client
+  - Support for async tasks in prompts, resources and tools via Promesa
+  - Implemented MCP features (on the server)
+    - [x] Cancellation
+    - [x] Ping
+    - [x] Progress
+    - [x] Roots
+    - [x] Sampling
+    - [x] Prompts
+    - [x] Resources
+    - [x] Tools
+    - [x] Completion
+    - [x] Logging
+    - [ ] Pagination
+- [ ] Client API
+
 ## Usage
 
 See the `README.md` in the `example-server/` project to learn:
@@ -30,6 +50,7 @@ It is typically used for building general purpose MCP stuffs.
 - [MCP Clojure SDK](https://github.com/unravel-team/mcp-clojure-sdk): similar library, discovered after being mostly done implementing this one 😅
 - Calva's [Backseat Driver](https://github.com/BetterThanTomorrow/calva-backseat-driver)
 - [Clojure MCP](https://github.com/bhauman/clojure-mcp)
+- [Modex](https://github.com/theronic/modex)
 
 ## License
 
