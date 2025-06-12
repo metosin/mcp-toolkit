@@ -1,5 +1,5 @@
 (ns mcp-toolkit.server.stdio
-  (:require [jsonista.core :as j]
+  (:require #?(:clj [jsonista.core :as j])
             [mcp-toolkit.server.json-rpc-message :as json-rpc])
   #?(:clj
      (:import (clojure.lang LineNumberingPushbackReader)
