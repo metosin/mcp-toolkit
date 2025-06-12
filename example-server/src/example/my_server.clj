@@ -1,6 +1,7 @@
 (ns example.my-server
   (:require [clojure.string :as str]
             [mcp-toolkit.server.core :as server]
+            [mcp-toolkit.server.stdio :as server.stdio]
             [nrepl.server :as nrepl]
             [promesa.core :as p]))
 
@@ -96,7 +97,7 @@
 ;; Transport & I/O
 (def context
   (-> session
-      (server/create-stdio-context *in* *out*)))
+      (server.stdio/create-stdio-context *in* *out*)))
 
 (defn main [{:keys [bind port]}]
   (let [server (nrepl/start-server {:bind bind
