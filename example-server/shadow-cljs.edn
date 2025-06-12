@@ -1,0 +1,5 @@
+{:deps true
+
+ :builds {:node-server {:target :node-script
+                        :main example.my-server/main
+                        :output-to "out/node-server.js"}}}

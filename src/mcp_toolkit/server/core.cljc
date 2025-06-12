@@ -107,35 +107,23 @@
       ;; TODO: handle the message's structural problem.
       ,)))
 
-(defn- handle-message [{:keys [message send-message] :as context}]
-  (if (vector? message)
-    ;; It is a batch message, if we respond it should be a batch response
-    (let [batch-response (->> message
-                              (mapv (fn [message]
-                                      (route-message (assoc context :message message)))))]
-      (-> (p/all batch-response)
-          (p/then (fn [batch-response]
-                    (let [batch-response (filterv some? batch-response)]
-                      (when (seq batch-response)
-                        (send-message batch-response)))))))
-    ;; It is a single message
-    (-> (route-message context)
-        (p/then (fn [response]
-                  (when (some? response)
-                    (send-message response)))))))
-
-(defn listen-messages [context]
-  (let [{:keys [session read-message send-message]} context]
-    (loop []
-      (when-some [message (read-message)]
-        (swap! session update :message-log conj [:--> message])
-        ;;(if invalid-request
-        ;;  (send-message (rpc/invalid-request-response))
-        (let [context {:session session
-                       :message message
-                       :send-message send-message}]
-          (handle-message context))
-        (recur)))))
+(defn handle-message [context]
+  (let [{:keys [message send-message]} context]
+    (if (vector? message)
+      ;; It is a batch message, if we respond it should be a batch response
+      (let [batch-response (->> message
+                                (mapv (fn [message]
+                                        (route-message (assoc context :message message)))))]
+        (-> (p/all batch-response)
+            (p/then (fn [batch-response]
+                      (let [batch-response (filterv some? batch-response)]
+                        (when (seq batch-response)
+                          (send-message batch-response)))))))
+      ;; It is a single message
+      (-> (route-message context)
+          (p/then (fn [response]
+                    (when (some? response)
+                      (send-message response))))))))
 
 ;;
 ;; Functions typically called from a prompt-fn or a tool-fn

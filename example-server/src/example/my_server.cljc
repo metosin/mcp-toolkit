@@ -1,9 +1,12 @@
 (ns example.my-server
   (:require [clojure.string :as str]
             [mcp-toolkit.server.core :as server]
-            [mcp-toolkit.server.stdio :as server.stdio]
-            [nrepl.server :as nrepl]
-            [promesa.core :as p]))
+            [mcp-toolkit.server.json-rpc-message :as json-rpc]
+            [promesa.core :as p]
+            #?(:clj [jsonista.core :as j])
+            #?(:clj [nrepl.server :as nrepl]))
+  #?(:clj (:import (clojure.lang LineNumberingPushbackReader)
+                   (java.io OutputStreamWriter))))
 
 ;; Example of usage of this library.
 
@@ -85,7 +88,10 @@
                                          :text (str "Something went wrong: " (ex-message exception))}]
                               :isError true}))))})
 
+;;
 ;; State
+;;
+
 (def session
   (server/create-session {:prompts [talk-like-pirate-prompt]
                           :resources [hello-world-resource]
@@ -94,21 +100,93 @@
                           :resource-uri-complete-fn my-resource-uri-complete-fn
                           :on-client-roots-updated (fn [context] ,,,)}))
 
-;; Transport & I/O
-(def context
-  (-> session
-      (server.stdio/create-stdio-context *in* *out*)))
+;;
+;; Platform-specific threading, transport & I/O stuffs
+;;
 
-(defn main [{:keys [bind port]}]
-  (let [server (nrepl/start-server {:bind bind
-                                    :port port})]
-    (try
-      (server/listen-messages context)
-      (finally
-        (nrepl/stop-server server)))))
+;; on the JVM
+
+#?(:clj
+   (def context
+     {:session session
+      :send-message (let [^OutputStreamWriter writer *out*
+                          json-mapper (j/object-mapper {:encode-key-fn name})]
+                      (fn [message]
+                        (.write writer (j/write-value-as-string message json-mapper))
+                        (.write writer "\n")
+                        (.flush writer)))}))
+
+#?(:clj
+   (defn listen-messages [context
+                          ^LineNumberingPushbackReader reader]
+     (let [{:keys [send-message]} context
+           json-mapper (j/object-mapper {:decode-key-fn keyword})]
+       (loop []
+         ;; line = nil means that the reader is closed
+         (when-some [line (.readLine reader)]
+           (let [message (try
+                           ;; In this simple example, we naively assume that there is a json object per line.
+                           (-> (j/read-value line json-mapper))
+                           (catch Exception e
+                             (send-message json-rpc/parse-error-response)
+                             nil))]
+             (if (nil? message)
+               (recur)
+               (do
+                 (server/handle-message (-> context
+                                            (assoc :message message)))
+                 (recur)))))))))
+
+#?(:clj
+   (defn main [{:keys [bind port]}]
+     ;; In this example, we launch an nREPL server which can be used to hack the MCP server while it is running.
+     ;; You might not need it, in which case feel free to remove it.
+     (let [server (nrepl/start-server {:bind bind
+                                       :port port})]
+       (try
+         ;; listen-messages returns once *in* is closed.
+         (listen-messages context *in*)
+         (finally
+           (nrepl/stop-server server))))))
+
+;; on Node JS
+
+#?(:cljs
+   (def context
+     {:session session
+      :send-message (fn [message]
+                      (js/process.stdout.write (-> message
+                                                   clj->js
+                                                   js/JSON.stringify
+                                                   (str "\n"))))}))
+
+#?(:cljs
+   (defn main [& args]
+     (js/process.stdin.setEncoding "utf8")
+     (js/process.stdout.setEncoding "utf8")
+
+     (js/process.stdin.on "data"
+                          (fn [chunk]
+                            ;; In this simple example, we naively assume that there is a json object per line.
+                            (doseq [line (str/split-lines chunk)]
+                              (when-some [message (try
+                                                    (-> line
+                                                        js/JSON.parse
+                                                        (js->clj :keywordize-keys true))
+                                                    (catch js/SyntaxError e
+                                                      (js/process.stderr.write (str "<<-" line "->>"))
+                                                      nil))]
+                                (server/handle-message (assoc context :message message))))))
+     (js/process.stdin.on "end"
+                          (fn []
+                            (js/process.exit 0)))))
+
+;;
+;; Things to run in the REPL while the server is running
+;;
 
 (comment
-  ;; tail -n 20 -F ~/Library/Logs/Claude/mcp-server-mcp-toolkit.log
+  ;; tail -n 20 -F ~/Library/Logs/Claude/mcp-server-toolkit.log
 
   @session
   (:message-log @session)
