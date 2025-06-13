@@ -57,7 +57,7 @@
    ;; The base64-encoded image data.
    [:data [:string {:description "Base64-encoded image data"}]]
    ;; The MIME type of the image. Different providers may support different image types.
-   [:mime-type :string]
+   [:mimeType :string]
    ;; Optional annotations for the client.
    [:annotations {:optional true} annotations]])
 
@@ -68,7 +68,7 @@
    ;; The base64-encoded audio data.
    [:data [:string {:description "Base64-encoded audio data"}]]
    ;; The MIME type of the audio. Different providers may support different audio types.
-   [:mime-type :string]
+   [:mimeType :string]
    ;; Optional annotations for the client.
    [:annotations {:optional true} annotations]])
 
@@ -79,7 +79,7 @@
    ;; The text of the item. This must only be set if the item can actually be represented as text (not binary data).
    [:text :string]
    ;; The MIME type of this resource, if known.
-   [:mime-type {:optional true} :string]])
+   [:mimeType {:optional true} :string]])
 
 (def blob-resource-contents
   [:map
@@ -88,7 +88,7 @@
    ;; A base64-encoded string representing the binary data of the item.
    [:blob [:string {:description "Base64-encoded binary data"}]]
    ;; The MIME type of this resource, if known.
-   [:mime-type {:optional true} :string]])
+   [:mimeType {:optional true} :string]])
 
 ;; The contents of a resource, embedded into a prompt or tool call result.
 ;;
@@ -148,17 +148,17 @@
    ;; How much to prioritize cost when selecting a model. A value of 0 means cost
    ;; is not important, while a value of 1 means cost is the most important
    ;; factor.
-   [:cost-priority {:optional true} [:double {:min 0 :max 1}]]
+   [:costPriority {:optional true} [:double {:min 0 :max 1}]]
 
    ;; How much to prioritize intelligence and capabilities when selecting a
    ;; model. A value of 0 means intelligence is not important, while a value of 1
    ;; means intelligence is the most important factor.
-   [:intelligence-priority {:optional true} [:double {:min 0 :max 1}]]
+   [:intelligencePriority {:optional true} [:double {:min 0 :max 1}]]
 
    ;; How much to prioritize sampling speed (latency) when selecting a model. A
    ;; value of 0 means speed is not important, while a value of 1 means speed is
    ;; the most important factor.
-   [:speed-priority {:optional true} [:double {:min 0 :max 1}]]
+   [:speedPriority {:optional true} [:double {:min 0 :max 1}]]
 
    ;; Optional hints to use for model selection.
    ;;
@@ -235,7 +235,7 @@
    [:description {:optional true} :string]
 
    ;; The MIME type of this resource, if known.
-   [:mime-type {:optional true} :string]
+   [:mimeType {:optional true} :string]
 
    ;; The size of the raw resource content, in bytes (i.e., before base64 encoding or any tokenization), if known.
    ;;
@@ -254,7 +254,7 @@
    [:name :string]
 
    ;; A URI template (according to RFC 6570) that can be used to construct resource URIs.
-   [:uri-template [:string {:format :uri-template}]]
+   [:uriTemplate [:string {:format :uri-template}]]
 
    ;; A description of what this template is for.
    ;;
@@ -262,7 +262,7 @@
    [:description {:optional true} :string]
 
    ;; The MIME type for all resources that match this template. This should only be included if all resources matching this template have the same type.
-   [:mime-type {:optional true} :string]
+   [:mimeType {:optional true} :string]
 
    ;; Optional annotations for the client.
    [:annotations {:optional true} annotations]])
@@ -283,7 +283,7 @@
    ;; If true, the tool does not modify its environment.
    ;;
    ;; Default: false
-   [:read-only-hint {:optional true} :boolean]
+   [:readOnlyHint {:optional true} :boolean]
 
    ;; If true, the tool may perform destructive updates to its environment.
    ;; If false, the tool performs only additive updates.
@@ -291,7 +291,7 @@
    ;; (This property is meaningful only when `readOnlyHint == false`)
    ;;
    ;; Default: true
-   [:destructive-hint {:optional true} :boolean]
+   [:destructiveHint {:optional true} :boolean]
 
    ;; If true, calling the tool repeatedly with the same arguments
    ;; will have no additional effect on the its environment.
@@ -299,7 +299,7 @@
    ;; (This property is meaningful only when `readOnlyHint == false`)
    ;;
    ;; Default: false
-   [:idempotent-hint {:optional true} :boolean]
+   [:idempotentHint {:optional true} :boolean]
 
    ;; If true, this tool may interact with an "open world" of external
    ;; entities. If false, the tool's domain of interaction is closed.
@@ -307,7 +307,7 @@
    ;; of a memory tool is not.
    ;;
    ;; Default: true
-   [:open-world-hint {:optional true} :boolean]])
+   [:openWorldHint {:optional true} :boolean]])
 
 ;; Definition for a tool the client can call.
 (def tool
@@ -321,10 +321,10 @@
    [:description {:optional true} :string]
 
    ;; A JSON Schema object defining the expected parameters for the tool.
-   [:input-schema [:map
-                   [:type [:= "object"]]
-                   [:properties {:optional true} [:map-of :string :any]]
-                   [:required {:optional true} [:vector :string]]]]
+   [:inputSchema [:map
+                  [:type [:= "object"]]
+                  [:properties {:optional true} [:map-of :string :any]]
+                  [:required {:optional true} [:vector :string]]]]
 
    ;; Optional additional tool information.
    [:annotations {:optional true} tool-annotations]])
@@ -352,7 +352,7 @@
    ;; Present if the client supports listing roots.
    [:roots {:optional true} [:map
                              ;; Whether the client supports notifications for changes to the roots list.
-                             [:list-changed {:optional true} :boolean]]]
+                             [:listChanged {:optional true} :boolean]]]
 
    ;; Present if the client supports sampling from an LLM.
    [:sampling {:optional true} [:map]]])
@@ -373,19 +373,19 @@
    ;; Present if the server offers any prompt templates.
    [:prompts {:optional true} [:map
                                ;; Whether this server supports notifications for changes to the prompt list.
-                               [:list-changed {:optional true} :boolean]]]
+                               [:listChanged {:optional true} :boolean]]]
 
    ;; Present if the server offers any resources to read.
    [:resources {:optional true} [:map
                                  ;; Whether this server supports notifications for changes to the resource list.
-                                 [:list-changed {:optional true} :boolean]
+                                 [:listChanged {:optional true} :boolean]
                                  ;; Whether this server supports subscribing to resource updates.
                                  [:subscribe {:optional true} :boolean]]]
 
    ;; Present if the server offers any tools to call.
    [:tools {:optional true} [:map
                              ;; Whether this server supports notifications for changes to the tool list.
-                             [:list-changed {:optional true} :boolean]]]])
+                             [:listChanged {:optional true} :boolean]]]])
 
 ;; A request that expects a response.
 (def json-rpc-request
@@ -396,7 +396,7 @@
    [:params {:optional true} [:map
                               [:_meta {:optional true} [:map
                                                         ;; If specified, the caller is requesting out-of-band progress notifications for this request (as represented by notifications/progress). The value of this parameter is an opaque token that will be attached to any subsequent notifications. The receiver is not obligated to provide these notifications.
-                                                        [:progress-token {:optional true} progress-token]]]]]])
+                                                        [:progressToken {:optional true} progress-token]]]]]])
 
 ;; A notification which does not expect a response.
 (def json-rpc-notification
@@ -433,9 +433,9 @@
    [:method [:= "initialize"]]
    [:params [:map
              ;; The latest version of the Model Context Protocol that the client supports. The client MAY decide to support older versions as well.
-             [:protocol-version :string]
+             [:protocolVersion :string]
              [:capabilities client-capabilities]
-             [:client-info implementation]]]])
+             [:clientInfo implementation]]]])
 
 ;; A ping, issued by either the server or the client, to check that the other party is still alive.
 ;; The receiver must promptly respond, or else may be disconnected.
@@ -445,7 +445,7 @@
    [:params {:optional true} [:map
                               [:_meta {:optional true} [:map
                                                         ;; If specified, the caller is requesting out-of-band progress notifications for this request (as represented by notifications/progress). The value of this parameter is an opaque token that will be attached to any subsequent notifications. The receiver is not obligated to provide these notifications.
-                                                        [:progress-token {:optional true} progress-token]]]]]])
+                                                        [:progressToken {:optional true} progress-token]]]]]])
 
 ;; Sent from the client to request a list of resources the server has.
 (def list-resources-request
@@ -555,18 +555,18 @@
    [:method [:= "sampling/createMessage"]]
    [:params [:map
              ;; The maximum number of tokens to sample, as requested by the server. The client MAY choose to sample fewer tokens than requested.
-             [:max-tokens :int]
+             [:maxTokens :int]
              [:messages [:vector sampling-message]]
              ;; An optional system prompt the server wants to use for sampling. The client MAY modify or omit this prompt.
-             [:system-prompt {:optional true} :string]
+             [:systemPrompt {:optional true} :string]
              ;; A request to include context from one or more MCP servers (including the caller), to be attached to the prompt. The client MAY ignore this request.
-             [:include-context {:optional true} [:enum "allServers" "none" "thisServer"]]
+             [:includeContext {:optional true} [:enum "allServers" "none" "thisServer"]]
              [:temperature {:optional true} :double]
-             [:stop-sequences {:optional true} [:vector :string]]
+             [:stopSequences {:optional true} [:vector :string]]
              ;; Optional metadata to pass through to the LLM provider. The format of this metadata is provider-specific.
              [:metadata {:optional true} [:map]]
              ;; The server's preferences for which model to select. The client MAY ignore these preferences.
-             [:model-preferences {:optional true} model-preferences]]]])
+             [:modelPreferences {:optional true} model-preferences]]]])
 
 ;; Sent from the server to request a list of root URIs from the client. Roots allow
 ;; servers to ask for specific directories or files to operate on. A common example
@@ -581,7 +581,7 @@
    [:params {:optional true} [:map
                               [:_meta {:optional true} [:map
                                                         ;; If specified, the caller is requesting out-of-band progress notifications for this request (as represented by notifications/progress). The value of this parameter is an opaque token that will be attached to any subsequent notifications. The receiver is not obligated to provide these notifications.
-                                                        [:progress-token {:optional true} progress-token]]]]]])
+                                                        [:progressToken {:optional true} progress-token]]]]]])
 
 ;; After receiving an initialize request from the client, the server sends this response.
 (def initialize-result
@@ -589,9 +589,9 @@
    ;; This result property is reserved by the protocol to allow clients and servers to attach additional metadata to their responses.
    [:_meta {:optional true} [:map-of :keyword :any]]
    ;; The version of the Model Context Protocol that the server wants to use. This may not match the version that the client requested. If the client cannot support this version, it MUST disconnect.
-   [:protocol-version :string]
+   [:protocolVersion :string]
    [:capabilities server-capabilities]
-   [:server-info implementation]
+   [:serverInfo implementation]
    ;; Instructions describing how to use the server and its features.
    ;;
    ;; This can be used by clients to improve the LLM's understanding of available tools, resources, etc. It can be thought of like a "hint" to the model. For example, this information MAY be added to the system prompt.
@@ -605,17 +605,17 @@
    [:resources [:vector resource]]
    ;; An opaque token representing the pagination position after the last returned result.
    ;; If present, there may be more results available.
-   [:next-cursor {:optional true} cursor]])
+   [:nextCursor {:optional true} cursor]])
 
 ;; The server's response to a resources/templates/list request from the client.
 (def list-resource-templates-result
   [:map
    ;; This result property is reserved by the protocol to allow clients and servers to attach additional metadata to their responses.
    [:_meta {:optional true} [:map-of :keyword :any]]
-   [:resource-templates [:vector resource-template]]
+   [:resourceTemplates [:vector resource-template]]
    ;; An opaque token representing the pagination position after the last returned result.
    ;; If present, there may be more results available.
-   [:next-cursor {:optional true} cursor]])
+   [:nextCursor {:optional true} cursor]])
 
 ;; The server's response to a resources/read request from the client.
 (def read-resource-result
@@ -632,7 +632,7 @@
    [:prompts [:vector prompt]]
    ;; An opaque token representing the pagination position after the last returned result.
    ;; If present, there may be more results available.
-   [:next-cursor {:optional true} cursor]])
+   [:nextCursor {:optional true} cursor]])
 
 ;; The server's response to a prompts/get request from the client.
 (def get-prompt-result
@@ -651,7 +651,7 @@
    [:tools [:vector tool]]
    ;; An opaque token representing the pagination position after the last returned result.
    ;; If present, there may be more results available.
-   [:next-cursor {:optional true} cursor]])
+   [:nextCursor {:optional true} cursor]])
 
 ;; The server's response to a tool call.
 ;;
@@ -671,7 +671,7 @@
    ;; Whether the tool call ended in an error.
    ;;
    ;; If not set, this is assumed to be false (the call was successful).
-   [:is-error {:optional true} :boolean]])
+   [:isError {:optional true} :boolean]])
 
 ;; The server's response to a completion/complete request
 (def complete-result
@@ -684,7 +684,7 @@
                  ;; The total number of completion options available. This can exceed the number of values actually sent in the response.
                  [:total {:optional true} :int]
                  ;; Indicates whether there are additional completion options beyond those provided in the current response, even if the exact total is unknown.
-                 [:has-more {:optional true} :boolean]]]])
+                 [:hasMore {:optional true} :boolean]]]])
 
 ;; The client's response to a sampling/create_message request from the server. The client should inform the user before
 ;; returning the sampled message, to allow them to inspect the response (human in the loop) and decide whether to allow
@@ -698,7 +698,7 @@
    ;; The name of the model that generated the message.
    [:model :string]
    ;; The reason why sampling stopped, if known.
-   [:stop-reason {:optional true} :string]])
+   [:stopReason {:optional true} :string]])
 
 ;; The client's response to a roots/list request from the server.
 ;; This result contains an array of Root objects, each representing a root directory
@@ -723,7 +723,7 @@
              ;; The ID of the request to cancel.
              ;;
              ;; This MUST correspond to the ID of a request previously issued in the same direction.
-             [:request-id request-id]
+             [:requestId request-id]
              ;; An optional string describing the reason for the cancellation. This MAY be logged or presented to the user.
              [:reason {:optional true} :string]]]])
 
@@ -741,7 +741,7 @@
    [:method [:= "notifications/progress"]]
    [:params [:map
              ;; The progress token which was given in the initial request, used to associate this notification with the request that is proceeding.
-             [:progress-token progress-token]
+             [:progressToken progress-token]
              ;; The progress thus far. This should increase every time progress is made, even if the total is unknown.
              [:progress :double]
              ;; Total number of items to process (or total progress required), if known.
