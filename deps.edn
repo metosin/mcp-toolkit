@@ -1,6 +1,7 @@
 {:paths ["src"]
 
  :deps {metosin/jsonista       {:mvn/version "0.3.13"}
+        metosin/malli          {:mvn/version "0.19.1"}
         taipei.404/mate        {:mvn/version "0.0.9"}
         funcool/promesa        {:mvn/version "11.0.678"}}
 
