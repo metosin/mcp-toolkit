@@ -1,8 +1,8 @@
-(ns mcp-toolkit.common.schema-2025-03-26
+(ns mcp-toolkit.schema.mcp-2024-11-05
   (:require [malli.generator :as mg]))
 
 ;; Model Context Protocol (MCP) Schema converted to Malli
-;; Based on: https://raw.githubusercontent.com/modelcontextprotocol/modelcontextprotocol/refs/heads/main/schema/2025-03-26/schema.json
+;; Based on: https://raw.githubusercontent.com/modelcontextprotocol/modelcontextprotocol/refs/heads/main/schema/2024-11-05/schema.json
 
 ;; The sender or recipient of messages and data in a conversation.
 (def role
@@ -26,22 +26,21 @@
 ;; An opaque token used to represent a cursor for pagination.
 (def cursor :string)
 
-;; Optional annotations for the client. The client can use annotations to inform how objects are used or displayed
-(def annotations
+;; Base for objects that include optional annotations for the client. The client can use annotations to inform how objects are used or displayed
+(def annotated
   [:map
-   ;; Describes who the intended customer of this object or data is.
-   ;;
-   ;; It can include multiple entries to indicate content useful for multiple audiences (e.g., `["user", "assistant"]`).
-   [:audience {:optional true} [:vector role]] ;; TODO: the content should be a subset of the roles with no duplication
+   [:annotations {:optional true} [:map
+                                   ;; Describes who the intended customer of this object or data is.
+                                   ;;
+                                   ;; It can include multiple entries to indicate content useful for multiple audiences (e.g., `["user", "assistant"]`).
+                                   [:audience {:optional true} [:vector role]]
 
-   ;; Describes how important this data is for operating the server.
-   ;;
-   ;; A value of 1 means "most important," and indicates that the data is
-   ;; effectively required, while 0 means "least important," and indicates that
-   ;; the data is entirely optional.
-   [:priority {:optional true} [:double {:min 0 :max 1}]]])
-
-#_(mg/generate annotations)
+                                   ;; Describes how important this data is for operating the server.
+                                   ;;
+                                   ;; A value of 1 means "most important," and indicates that the data is
+                                   ;; effectively required, while 0 means "least important," and indicates that
+                                   ;; the data is entirely optional.
+                                   [:priority {:optional true} [:double {:min 0 :max 1}]]]]])
 
 ;; Text provided to or from an LLM.
 (def text-content
@@ -49,8 +48,18 @@
    [:type [:= "text"]]
    ;; The text content of the message.
    [:text :string]
-   ;; Optional annotations for the client.
-   [:annotations {:optional true} annotations]])
+   [:annotations {:optional true} [:map
+                                   ;; Describes who the intended customer of this object or data is.
+                                   ;;
+                                   ;; It can include multiple entries to indicate content useful for multiple audiences (e.g., `["user", "assistant"]`).
+                                   [:audience {:optional true} [:vector role]]
+
+                                   ;; Describes how important this data is for operating the server.
+                                   ;;
+                                   ;; A value of 1 means "most important," and indicates that the data is
+                                   ;; effectively required, while 0 means "least important," and indicates that
+                                   ;; the data is entirely optional.
+                                   [:priority {:optional true} [:double {:min 0 :max 1}]]]]])
 
 ;; An image provided to or from an LLM.
 (def image-content
@@ -60,19 +69,18 @@
    [:data [:string {:description "Base64-encoded image data"}]]
    ;; The MIME type of the image. Different providers may support different image types.
    [:mimeType :string]
-   ;; Optional annotations for the client.
-   [:annotations {:optional true} annotations]])
+   [:annotations {:optional true} [:map
+                                   ;; Describes who the intended customer of this object or data is.
+                                   ;;
+                                   ;; It can include multiple entries to indicate content useful for multiple audiences (e.g., `["user", "assistant"]`).
+                                   [:audience {:optional true} [:vector role]]
 
-;; Audio provided to or from an LLM.
-(def audio-content
-  [:map
-   [:type [:= "audio"]]
-   ;; The base64-encoded audio data.
-   [:data [:string {:description "Base64-encoded audio data"}]]
-   ;; The MIME type of the audio. Different providers may support different audio types.
-   [:mimeType :string]
-   ;; Optional annotations for the client.
-   [:annotations {:optional true} annotations]])
+                                   ;; Describes how important this data is for operating the server.
+                                   ;;
+                                   ;; A value of 1 means "most important," and indicates that the data is
+                                   ;; effectively required, while 0 means "least important," and indicates that
+                                   ;; the data is entirely optional.
+                                   [:priority {:optional true} [:double {:min 0 :max 1}]]]]])
 
 (def text-resource-contents
   [:map
@@ -100,11 +108,21 @@
   [:map
    [:type [:= "resource"]]
    [:resource [:or text-resource-contents blob-resource-contents]]
-   ;; Optional annotations for the client.
-   [:annotations {:optional true} annotations]])
+   [:annotations {:optional true} [:map
+                                   ;; Describes who the intended customer of this object or data is.
+                                   ;;
+                                   ;; It can include multiple entries to indicate content useful for multiple audiences (e.g., `["user", "assistant"]`).
+                                   [:audience {:optional true} [:vector role]]
+
+                                   ;; Describes how important this data is for operating the server.
+                                   ;;
+                                   ;; A value of 1 means "most important," and indicates that the data is
+                                   ;; effectively required, while 0 means "least important," and indicates that
+                                   ;; the data is entirely optional.
+                                   [:priority {:optional true} [:double {:min 0 :max 1}]]]]])
 
 (def content
-  [:or text-content image-content audio-content embedded-resource])
+  [:or text-content image-content embedded-resource])
 
 ;; Describes the name and version of an MCP implementation.
 (def implementation
@@ -137,7 +155,7 @@
 ;; The server's preferences for model selection, requested of the client during sampling.
 ;;
 ;; Because LLMs can vary along multiple dimensions, choosing the "best" model is
-;; rarely straightforward. Different models excel in different areas—some are
+;; rarely straightforward.  Different models excel in different areas—some are
 ;; faster but less capable, others are more capable but more expensive, and so
 ;; on. This interface allows servers to express their priorities across multiple
 ;; dimensions to help clients make an appropriate selection for their use case.
@@ -175,7 +193,7 @@
 (def sampling-message
   [:map
    [:role role]
-   [:content [:or text-content image-content audio-content]]])
+   [:content [:or text-content image-content]]])
 
 ;; Describes a message returned as part of a prompt.
 ;;
@@ -184,7 +202,7 @@
 (def prompt-message
   [:map
    [:role role]
-   [:content content]])
+   [:content [:or text-content image-content embedded-resource]]])
 
 ;; Describes an argument that a prompt can accept.
 (def prompt-argument
@@ -220,6 +238,14 @@
    ;; The URI or URI template of the resource.
    [:uri [:string {:format :uri-template}]]])
 
+;; The contents of a specific resource or sub-resource.
+(def resource-contents
+  [:map
+   ;; The URI of this resource.
+   [:uri [:string {:format :uri}]]
+   ;; The MIME type of this resource, if known.
+   [:mimeType {:optional true} :string]])
+
 ;; A known resource that the server is capable of reading.
 (def resource
   [:map
@@ -244,8 +270,18 @@
    ;; This can be used by Hosts to display file sizes and estimate context window usage.
    [:size {:optional true} :int]
 
-   ;; Optional annotations for the client.
-   [:annotations {:optional true} annotations]])
+   [:annotations {:optional true} [:map
+                                   ;; Describes who the intended customer of this object or data is.
+                                   ;;
+                                   ;; It can include multiple entries to indicate content useful for multiple audiences (e.g., `["user", "assistant"]`).
+                                   [:audience {:optional true} [:vector role]]
+
+                                   ;; Describes how important this data is for operating the server.
+                                   ;;
+                                   ;; A value of 1 means "most important," and indicates that the data is
+                                   ;; effectively required, while 0 means "least important," and indicates that
+                                   ;; the data is entirely optional.
+                                   [:priority {:optional true} [:double {:min 0 :max 1}]]]]])
 
 ;; A template description for resources available on the server.
 (def resource-template
@@ -256,7 +292,7 @@
    [:name :string]
 
    ;; A URI template (according to RFC 6570) that can be used to construct resource URIs.
-   [:uriTemplate [:string {:format :uri-template}]] ;; TODO is :format understood by Malli?
+   [:uriTemplate [:string {:format :uri-template}]]
 
    ;; A description of what this template is for.
    ;;
@@ -266,52 +302,18 @@
    ;; The MIME type for all resources that match this template. This should only be included if all resources matching this template have the same type.
    [:mimeType {:optional true} :string]
 
-   ;; Optional annotations for the client.
-   [:annotations {:optional true} annotations]])
+   [:annotations {:optional true} [:map
+                                   ;; Describes who the intended customer of this object or data is.
+                                   ;;
+                                   ;; It can include multiple entries to indicate content useful for multiple audiences (e.g., `["user", "assistant"]`).
+                                   [:audience {:optional true} [:vector role]]
 
-#_(mg/generate resource-template)
-
-;; Additional properties describing a Tool to clients.
-;;
-;; NOTE: all properties in ToolAnnotations are **hints**.
-;; They are not guaranteed to provide a faithful description of
-;; tool behavior (including descriptive properties like `title`).
-;;
-;; Clients should never make tool use decisions based on ToolAnnotations
-;; received from untrusted servers.
-(def tool-annotations
-  [:map
-   ;; A human-readable title for the tool.
-   [:title {:optional true} :string]
-
-   ;; If true, the tool does not modify its environment.
-   ;;
-   ;; Default: false
-   [:readOnlyHint {:optional true} :boolean]
-
-   ;; If true, the tool may perform destructive updates to its environment.
-   ;; If false, the tool performs only additive updates.
-   ;;
-   ;; (This property is meaningful only when `readOnlyHint == false`)
-   ;;
-   ;; Default: true
-   [:destructiveHint {:optional true} :boolean]
-
-   ;; If true, calling the tool repeatedly with the same arguments
-   ;; will have no additional effect on the its environment.
-   ;;
-   ;; (This property is meaningful only when `readOnlyHint == false`)
-   ;;
-   ;; Default: false
-   [:idempotentHint {:optional true} :boolean]
-
-   ;; If true, this tool may interact with an "open world" of external
-   ;; entities. If false, the tool's domain of interaction is closed.
-   ;; For example, the world of a web search tool is open, whereas that
-   ;; of a memory tool is not.
-   ;;
-   ;; Default: true
-   [:openWorldHint {:optional true} :boolean]])
+                                   ;; Describes how important this data is for operating the server.
+                                   ;;
+                                   ;; A value of 1 means "most important," and indicates that the data is
+                                   ;; effectively required, while 0 means "least important," and indicates that
+                                   ;; the data is entirely optional.
+                                   [:priority {:optional true} [:double {:min 0 :max 1}]]]]])
 
 ;; Definition for a tool the client can call.
 (def tool
@@ -320,18 +322,13 @@
    [:name :string]
 
    ;; A human-readable description of the tool.
-   ;;
-   ;; This can be used by clients to improve the LLM's understanding of available tools. It can be thought of like a "hint" to the model.
    [:description {:optional true} :string]
 
    ;; A JSON Schema object defining the expected parameters for the tool.
    [:inputSchema [:map
                   [:type [:= "object"]]
                   [:properties {:optional true} [:map-of :string :any]]
-                  [:required {:optional true} [:vector :string]]]]
-
-   ;; Optional additional tool information.
-   [:annotations {:optional true} tool-annotations]])
+                  [:required {:optional true} [:vector :string]]]]])
 
 ;; Represents a root directory or file that the server can operate on.
 (def root
@@ -346,8 +343,7 @@
    ;; referencing the root in other parts of the application.
    [:name {:optional true} :string]])
 
-;; Capabilities a client may support. Known capabilities are defined here, in this schema, but this is not a closed set:
-;; any client can define its own, additional capabilities.
+;; Capabilities a client may support. Known capabilities are defined here, in this schema, but this is not a closed set: any client can define its own, additional capabilities.
 (def client-capabilities
   [:map
    ;; Experimental, non-standard capabilities that the client supports.
@@ -361,8 +357,7 @@
    ;; Present if the client supports sampling from an LLM.
    [:sampling {:optional true} [:map]]])
 
-;; Capabilities that a server may support. Known capabilities are defined here, in this schema, but this is not a closed set:
-;; any server can define its own, additional capabilities.
+;; Capabilities that a server may support. Known capabilities are defined here, in this schema, but this is not a closed set: any server can define its own, additional capabilities.
 (def server-capabilities
   [:map
    ;; Experimental, non-standard capabilities that the server supports.
@@ -370,9 +365,6 @@
 
    ;; Present if the server supports sending log messages to the client.
    [:logging {:optional true} [:map]]
-
-   ;; Present if the server supports argument autocompletion suggestions.
-   [:completions {:optional true} [:map]]
 
    ;; Present if the server offers any prompt templates.
    [:prompts {:optional true} [:map
@@ -399,8 +391,8 @@
    [:method :string]
    [:params {:optional true} [:map
                               [:_meta {:optional true} [:map
-                                                        ;; If specified, the caller is requesting out-of-band progress notifications for this request (as represented by notifications/progress). The value of this parameter is an opaque token that will be attached to any subsequent notifications. The receiver is not obligated to provide these notifications.
-                                                        [:progressToken {:optional true} progress-token]]]]]])
+                                                         ;; If specified, the caller is requesting out-of-band progress notifications for this request (as represented by notifications/progress). The value of this parameter is an opaque token that will be attached to any subsequent notifications. The receiver is not obligated to provide these notifications.
+                                                         [:progressToken {:optional true} progress-token]]]]]])
 
 ;; A notification which does not expect a response.
 (def json-rpc-notification
@@ -431,6 +423,37 @@
             ;; Additional information about the error. The value of this member is defined by the sender (e.g. detailed error information, nested errors etc.).
             [:data {:optional true} :any]]]])
 
+(def notification
+  [:map
+   [:method :string]
+   [:params {:optional true} [:map
+                              ;; This parameter name is reserved by MCP to allow clients and servers to attach additional metadata to their notifications.
+                              [:_meta {:optional true} [:map]]]]])
+
+(def paginated-request
+  [:map
+   [:method :string]
+   [:params {:optional true} [:map
+                              ;; An opaque token representing the current pagination position.
+                              ;; If provided, the server should return results starting after this cursor.
+                              [:cursor {:optional true} cursor]]]])
+
+(def paginated-result
+  [:map
+   ;; This result property is reserved by the protocol to allow clients and servers to attach additional metadata to their responses.
+   [:_meta {:optional true} [:map-of :keyword :any]]
+   ;; An opaque token representing the pagination position after the last returned result.
+   ;; If present, there may be more results available.
+   [:nextCursor {:optional true} cursor]])
+
+(def request
+  [:map
+   [:method :string]
+   [:params {:optional true} [:map
+                              [:_meta {:optional true} [:map
+                                                         ;; If specified, the caller is requesting out-of-band progress notifications for this request (as represented by notifications/progress). The value of this parameter is an opaque token that will be attached to any subsequent notifications. The receiver is not obligated to provide these notifications.
+                                                         [:progressToken {:optional true} progress-token]]]]]])
+
 ;; This request is sent from the client to the server when it first connects, asking it to begin initialization.
 (def initialize-request
   [:map
@@ -441,15 +464,14 @@
              [:capabilities client-capabilities]
              [:clientInfo implementation]]]])
 
-;; A ping, issued by either the server or the client, to check that the other party is still alive.
-;; The receiver must promptly respond, or else may be disconnected.
+;; A ping, issued by either the server or the client, to check that the other party is still alive. The receiver must promptly respond, or else may be disconnected.
 (def ping-request
   [:map
    [:method [:= "ping"]]
    [:params {:optional true} [:map
                               [:_meta {:optional true} [:map
-                                                        ;; If specified, the caller is requesting out-of-band progress notifications for this request (as represented by notifications/progress). The value of this parameter is an opaque token that will be attached to any subsequent notifications. The receiver is not obligated to provide these notifications.
-                                                        [:progressToken {:optional true} progress-token]]]]]])
+                                                         ;; If specified, the caller is requesting out-of-band progress notifications for this request (as represented by notifications/progress). The value of this parameter is an opaque token that will be attached to any subsequent notifications. The receiver is not obligated to provide these notifications.
+                                                         [:progressToken {:optional true} progress-token]]]]]])
 
 ;; Sent from the client to request a list of resources the server has.
 (def list-resources-request
@@ -485,8 +507,7 @@
              ;; The URI of the resource to subscribe to. The URI can use any protocol; it is up to the server how to interpret it.
              [:uri [:string {:format :uri}]]]]])
 
-;; Sent from the client to request cancellation of resources/updated notifications from the server.
-;; This should follow a previous resources/subscribe request.
+;; Sent from the client to request cancellation of resources/updated notifications from the server. This should follow a previous resources/subscribe request.
 (def unsubscribe-request
   [:map
    [:method [:= "resources/unsubscribe"]]
@@ -551,9 +572,7 @@
              ;; The level of logging that the client wants to receive from the server. The server should send all logs at this level and higher (i.e., more severe) to the client as notifications/message.
              [:level logging-level]]]])
 
-;; A request from the server to sample an LLM via the client. The client has full discretion over which model to select.
-;; The client should also inform the user before beginning sampling, to allow them to inspect the request (human in the loop)
-;; and decide whether to approve it.
+;; A request from the server to sample an LLM via the client. The client has full discretion over which model to select. The client should also inform the user before beginning sampling, to allow them to inspect the request (human in the loop) and decide whether to approve it.
 (def create-message-request
   [:map
    [:method [:= "sampling/createMessage"]]
@@ -584,8 +603,8 @@
    [:method [:= "roots/list"]]
    [:params {:optional true} [:map
                               [:_meta {:optional true} [:map
-                                                        ;; If specified, the caller is requesting out-of-band progress notifications for this request (as represented by notifications/progress). The value of this parameter is an opaque token that will be attached to any subsequent notifications. The receiver is not obligated to provide these notifications.
-                                                        [:progressToken {:optional true} progress-token]]]]]])
+                                                         ;; If specified, the caller is requesting out-of-band progress notifications for this request (as represented by notifications/progress). The value of this parameter is an opaque token that will be attached to any subsequent notifications. The receiver is not obligated to provide these notifications.
+                                                         [:progressToken {:optional true} progress-token]]]]]])
 
 ;; After receiving an initialize request from the client, the server sends this response.
 (def initialize-result
@@ -671,7 +690,7 @@
   [:map
    ;; This result property is reserved by the protocol to allow clients and servers to attach additional metadata to their responses.
    [:_meta {:optional true} [:map-of :keyword :any]]
-   [:content [:vector content]]
+   [:content [:vector [:or text-content image-content embedded-resource]]]
    ;; Whether the tool call ended in an error.
    ;;
    ;; If not set, this is assumed to be false (the call was successful).
@@ -690,15 +709,13 @@
                  ;; Indicates whether there are additional completion options beyond those provided in the current response, even if the exact total is unknown.
                  [:hasMore {:optional true} :boolean]]]])
 
-;; The client's response to a sampling/create_message request from the server. The client should inform the user before
-;; returning the sampled message, to allow them to inspect the response (human in the loop) and decide whether to allow
-;; the server to see it.
+;; The client's response to a sampling/create_message request from the server. The client should inform the user before returning the sampled message, to allow them to inspect the response (human in the loop) and decide whether to allow the server to see it.
 (def create-message-result
   [:map
    ;; This result property is reserved by the protocol to allow clients and servers to attach additional metadata to their responses.
    [:_meta {:optional true} [:map-of :keyword :any]]
    [:role role]
-   [:content [:or text-content image-content audio-content]]
+   [:content [:or text-content image-content]]
    ;; The name of the model that generated the message.
    [:model :string]
    ;; The reason why sampling stopped, if known.
@@ -713,9 +730,11 @@
    [:_meta {:optional true} [:map-of :keyword :any]]
    [:roots [:vector root]]])
 
+(def empty-result result)
+
 ;; This notification can be sent by either side to indicate that it is cancelling a previously-issued request.
-;; The request SHOULD still be in-flight, but due to communication latency, it is always possible that this notification
-;; MAY arrive after the request has already finished.
+;;
+;; The request SHOULD still be in-flight, but due to communication latency, it is always possible that this notification MAY arrive after the request has already finished.
 ;;
 ;; This notification indicates that the result will be unused, so any associated processing SHOULD cease.
 ;;
@@ -749,11 +768,7 @@
              ;; The progress thus far. This should increase every time progress is made, even if the total is unknown.
              [:progress :double]
              ;; Total number of items to process (or total progress required), if known.
-             [:total {:optional true} :double]
-             ;; An optional message describing the current progress.
-             [:message {:optional true} :string]]]])
-
-#_(mg/generate progress-notification)
+             [:total {:optional true} :double]]]])
 
 ;; A notification from the client to the server, informing it that the list of roots has changed.
 ;; This notification should be sent whenever the client adds, removes, or modifies any root.
@@ -765,8 +780,7 @@
                               ;; This parameter name is reserved by MCP to allow clients and servers to attach additional metadata to their notifications.
                               [:_meta {:optional true} [:map]]]]])
 
-;; An optional notification from the server to the client, informing it that the list of resources it can read from has changed.
-;; This may be issued by servers without any previous subscription from the client.
+;; An optional notification from the server to the client, informing it that the list of resources it can read from has changed. This may be issued by servers without any previous subscription from the client.
 (def resource-list-changed-notification
   [:map
    [:method [:= "notifications/resources/list_changed"]]
@@ -774,8 +788,7 @@
                               ;; This parameter name is reserved by MCP to allow clients and servers to attach additional metadata to their notifications.
                               [:_meta {:optional true} [:map]]]]])
 
-;; A notification from the server to the client, informing it that a resource has changed and may need to be read again.
-;; This should only be sent if the client previously sent a resources/subscribe request.
+;; A notification from the server to the client, informing it that a resource has changed and may need to be read again. This should only be sent if the client previously sent a resources/subscribe request.
 (def resource-updated-notification
   [:map
    [:method [:= "notifications/resources/updated"]]
@@ -783,8 +796,7 @@
              ;; The URI of the resource that has been updated. This might be a sub-resource of the one that the client actually subscribed to.
              [:uri [:string {:format :uri}]]]]])
 
-;; An optional notification from the server to the client, informing it that the list of prompts it offers has changed.
-;; This may be issued by servers without any previous subscription from the client.
+;; An optional notification from the server to the client, informing it that the list of prompts it offers has changed. This may be issued by servers without any previous subscription from the client.
 (def prompt-list-changed-notification
   [:map
    [:method [:= "notifications/prompts/list_changed"]]
@@ -792,8 +804,7 @@
                               ;; This parameter name is reserved by MCP to allow clients and servers to attach additional metadata to their notifications.
                               [:_meta {:optional true} [:map]]]]])
 
-;; An optional notification from the server to the client, informing it that the list of tools it offers has changed.
-;; This may be issued by servers without any previous subscription from the client.
+;; An optional notification from the server to the client, informing it that the list of tools it offers has changed. This may be issued by servers without any previous subscription from the client.
 (def tool-list-changed-notification
   [:map
    [:method [:= "notifications/tools/list_changed"]]
@@ -801,8 +812,7 @@
                               ;; This parameter name is reserved by MCP to allow clients and servers to attach additional metadata to their notifications.
                               [:_meta {:optional true} [:map]]]]])
 
-;; Notification of a log message passed from server to client. If no logging/setLevel request has been sent from the client,
-;; the server MAY decide which messages to send automatically.
+;; Notification of a log message passed from server to client. If no logging/setLevel request has been sent from the client, the server MAY decide which messages to send automatically.
 (def logging-message-notification
   [:map
    [:method [:= "notifications/message"]]
@@ -844,10 +854,5 @@
    list-prompts-result get-prompt-result list-tools-result
    call-tool-result complete-result])
 
-;; Refers to any valid JSON-RPC object that can be decoded off the wire, or encoded to be sent.
 (def json-rpc-message
-  [:or json-rpc-request json-rpc-notification json-rpc-response json-rpc-error
-   [:vector [:or json-rpc-request json-rpc-notification]]  ; batch request
-   [:vector [:or json-rpc-response json-rpc-error]]])      ; batch response
-
-#_(mg/generate json-rpc-message)
+  [:or json-rpc-request json-rpc-notification json-rpc-response json-rpc-error])
