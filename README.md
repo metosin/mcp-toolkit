@@ -11,7 +11,10 @@ Tested on Claude Desktop and Claude Code, no problems found for the features imp
 
 ## Implemented features
 
-- [ ] CLJC
+- [x] CLJC
+  - [x] Clojure
+  - [x] Clojurescript
+  - [ ] Babashka
 - [x] Server API
   - Stdio connection with an external MCP client
   - Support for async tasks in prompts, resources and tools via Promesa
