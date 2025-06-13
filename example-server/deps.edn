@@ -1,11 +1,18 @@
 {:paths ["src"]
 
- :deps {fi.metosin/mcp-toolkit         {:local/root ".."}
+ :deps {org.clojure/clojure            {:mvn/version "1.12.1"}
+        org.clojure/clojurescript      {:mvn/version "1.12.42"}
+        thheller/shadow-cljs           {:mvn/version "3.1.6"}
         funcool/promesa                {:mvn/version "11.0.678"}
         nrepl/nrepl                    {:mvn/version "1.3.1"}
-        ch.qos.logback/logback-classic {:mvn/version "1.4.14"} ; TODO: do I need that?
+        fi.metosin/mcp-toolkit         {:local/root ".."}
         ,}
 
- :aliases {:mcp {:exec-fn example.my-server/main
+ :aliases {;; clojure -X:mcp
+           :mcp {:exec-fn example.my-server/main
                  :exec-args {:bind "127.0.0.1"
-                             :port 7925}}}}
+                             :port 7925}}
+
+           ;; clojure -M:outdated --upgrade
+           :outdated {:extra-deps {com.github.liquidz/antq {:mvn/version "2.11.1276"}}
+                      :main-opts  ["-m" "antq.core"]}}}

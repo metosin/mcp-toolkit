@@ -91,13 +91,13 @@
 
 (defn tool-call-handler [{:keys [session message] :as context}]
   (let [{:keys [name arguments]} (:params message)]
-    (try
-      (if-some [tool-fn (-> @session :tool-by-name (get name) :tool-fn)]
-        (tool-fn context arguments)
-        (json-rpc/invalid-tool-name (:id message) name))
-      (catch Exception e
-        {:content [{:type "text" :text (.getMessage e)}]
-         :isError true}))))
+    (if-some [tool-fn (-> @session :tool-by-name (get name) :tool-fn)]
+      (-> (tool-fn context arguments)
+          (p/catch (fn [exception]
+                     {:content [{:type "text"
+                                 :text (ex-message exception)}]
+                      :isError true})))
+      (json-rpc/invalid-tool-name (:id message) name))))
 
 (defn cancelled-notification-handler [{:keys [session message]}]
   (when-some [is-cancelled-atom (-> @session :is-cancelled-by-message-id (get (-> message :params :requestId)))]

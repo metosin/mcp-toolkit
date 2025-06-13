@@ -65,6 +65,24 @@ In `claude_desktop_config.json`, change the config to:
 npx @modelcontextprotocol/inspector clojure -X:mcp
 ```
 
+## Running the server on NodeJS
+
+Compile:
+```shell
+npm install
+npx shadow-cljs compile :node-server
+```
+
+Run:
+```shell
+node out/node-server.js
+```
+
+Test:
+```shell
+npx @modelcontextprotocol/inspector node out/node-server.js
+```
+
 ## Troubleshooting
 
 It can take a while until Claude Desktop asks the MCP server for its updated list
