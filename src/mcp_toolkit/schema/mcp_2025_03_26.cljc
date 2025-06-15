@@ -32,7 +32,7 @@
    ;; Describes who the intended customer of this object or data is.
    ;;
    ;; It can include multiple entries to indicate content useful for multiple audiences (e.g., `["user", "assistant"]`).
-   [:audience {:optional true} [:vector role]]
+   [:audience {:optional true} [:vector role]] ;; TODO: the content should be a subset of the roles with no duplication
 
    ;; Describes how important this data is for operating the server.
    ;;
@@ -40,6 +40,8 @@
    ;; effectively required, while 0 means "least important," and indicates that
    ;; the data is entirely optional.
    [:priority {:optional true} [:double {:min 0 :max 1}]]])
+
+#_(mg/generate annotations)
 
 ;; Text provided to or from an LLM.
 (def text-content
@@ -254,7 +256,7 @@
    [:name :string]
 
    ;; A URI template (according to RFC 6570) that can be used to construct resource URIs.
-   [:uriTemplate [:string {:format :uri-template}]]
+   [:uriTemplate [:string {:format :uri-template}]] ;; TODO is :format understood by Malli?
 
    ;; A description of what this template is for.
    ;;
@@ -266,6 +268,8 @@
 
    ;; Optional annotations for the client.
    [:annotations {:optional true} annotations]])
+
+#_(mg/generate resource-template)
 
 ;; Additional properties describing a Tool to clients.
 ;;
@@ -749,6 +753,8 @@
              ;; An optional message describing the current progress.
              [:message {:optional true} :string]]]])
 
+#_(mg/generate progress-notification)
+
 ;; A notification from the client to the server, informing it that the list of roots has changed.
 ;; This notification should be sent whenever the client adds, removes, or modifies any root.
 ;; The server should then request an updated list of roots using the ListRootsRequest.
@@ -843,3 +849,5 @@
   [:or json-rpc-request json-rpc-notification json-rpc-response json-rpc-error
    [:vector [:or json-rpc-request json-rpc-notification]]  ; batch request
    [:vector [:or json-rpc-response json-rpc-error]]])      ; batch response
+
+#_(mg/generate json-rpc-message)
