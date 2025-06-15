@@ -1,7 +1,6 @@
 (ns mcp-toolkit.server.core
   (:require [mate.core :as mc]
-            [promesa.core :as p]
-            [mcp-toolkit.server.json-rpc-message :as json-rpc]
+            [mcp-toolkit.json-rpc.message :as json-rpc]
             [mcp-toolkit.server.handler :as handler]))
 
 (defn create-session
@@ -27,6 +26,8 @@
          :server-instructions                server-instructions
 
          :initialized                        false
+         :handler-by-method                  handler/handler-by-method-pre-initialization
+
          :protocol-version                   nil ; determined at initialization
          :prompt-by-name                     (mc/index-by :name prompts)
          :resource-by-uri                    (mc/index-by :uri resources)
@@ -43,87 +44,9 @@
          :client-root-by-uri                 {}
          :client-logging-level               client-logging-level
 
-         :last-used-client-method-id         -1
-         :handler-by-client-method-id        {}}))
-
-(defn- route-message
-  "Returns a Promesa promise which handles a given json-rpc-message."
-  [{:keys [session message] :as context}]
-  (if (contains? message :method)
-    (let [handler-name->handler (if (:initialized @session)
-                                  {"ping"                             handler/ping-handler
-                                   "logging/setLevel"                 handler/set-logging-level-handler
-                                   "completion/complete"              handler/completion-complete-handler
-                                   "prompts/list"                     handler/prompt-list-handler
-                                   "prompts/get"                      handler/prompt-get-handler
-                                   "resources/list"                   handler/resource-list-handler
-                                   "resources/read"                   handler/resource-read-handler
-                                   "resources/templates/list"         handler/resource-templates-list-handler
-                                   "resources/subscribe"              handler/resource-subscribe-handler
-                                   "resources/unsubscribe"            handler/resource-unsubscribe-handler
-                                   "tools/list"                       handler/tool-list-handler
-                                   "tools/call"                       handler/tool-call-handler
-                                   "notifications/cancelled"          handler/cancelled-notification-handler
-                                   "notifications/roots/list_changed" handler/roots-changed-notification-handler}
-                                  {"ping"                      handler/ping-handler
-                                   "initialize"                handler/initialize-handler
-                                   "notifications/initialized" handler/initialized-notification-handler})
-          {:keys [id method]} message
-          handler (handler-name->handler method)]
-      (if (nil? handler)
-        (json-rpc/method-not-found-response id)
-        (if (nil? id)
-          ;; Notification, shall not return a result
-          (do
-            (handler context)
-            nil)
-          ;; Method call, cancellable, with result value when not cancelled
-          (let [is-cancelled (atom false)
-                context (assoc context :is-cancelled is-cancelled)]
-            (swap! session update :is-cancelled-by-message-id assoc id is-cancelled)
-            (-> (handler context)
-                (p/then (fn [result]
-                          (when-not @is-cancelled
-                            {:jsonrpc "2.0"
-                             :result result
-                             :id id})))
-                (p/handle (fn [result error]
-                            ;; Clean up, side effect
-                            (swap! session update :is-cancelled-by-message-id dissoc id)
-
-                            ;; Pass through as if this p/handle was not there.
-                            ;; We avoided using p/finally because it does not allow chaining further promises.
-                            (or error result))))))))
-    ;; Method call response
-    (if (and (contains? message :id)
-             (or (contains? message :result)
-                 (contains? message :error)))
-      (if-some [handler (-> @session :handler-by-client-method-id (get (:id message)))]
-        (do
-          (handler context)
-          nil)
-        ;; TODO: handle the case where the id is unknown to us.
-        ,)
-      ;; TODO: handle the message's structural problem.
-      ,)))
-
-(defn handle-message [context]
-  (let [{:keys [message send-message]} context]
-    (if (vector? message)
-      ;; It is a batch message, if we respond it should be a batch response
-      (let [batch-response (->> message
-                                (mapv (fn [message]
-                                        (route-message (assoc context :message message)))))]
-        (-> (p/all batch-response)
-            (p/then (fn [batch-response]
-                      (let [batch-response (filterv some? batch-response)]
-                        (when (seq batch-response)
-                          (send-message batch-response)))))))
-      ;; It is a single message
-      (-> (route-message context)
-          (p/then (fn [response]
-                    (when (some? response)
-                      (send-message response))))))))
+         :last-called-method-id              -1 ;; Used for calling methods on the remote site
+         :handler-by-called-method-id        {} ;; The response handlers
+         ,}))
 
 ;;
 ;; Functions typically called from a prompt-fn or a tool-fn

@@ -1,4 +1,4 @@
-(ns mcp-toolkit.server.json-rpc-message)
+(ns mcp-toolkit.json-rpc.message)
 
 ;; https://www.jsonrpc.org/specification
 
