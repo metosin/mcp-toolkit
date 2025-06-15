@@ -1,0 +1,86 @@
+(ns mcp-toolkit.json-rpc.handler
+  (:require [promesa.core :as p]
+            [mcp-toolkit.json-rpc.message :as json-rpc]))
+
+(defn call-remote-method
+  "Returns a promise which either
+   resolves with the message's result or
+   rejects with the message's error."
+  [context {:keys [method params] :as message}]
+  (let [{:keys [session send-message]} context
+        ;; Picks a unique method id for a remote call. Robust to concurrent calls.
+        ;; TODO: ensure it loops when reaching the maximum integer value.
+        called-method-id (-> (swap! session update :last-called-method-id inc)
+                             :last-called-method-id)]
+    (p/create
+      (fn [resolve reject]
+        (let [response-handler (fn [{:keys [session message]}]
+                                 (swap! session update :handler-by-called-method-id dissoc called-method-id)
+                                 (if (contains? message :error)
+                                   (reject (:error message))
+                                   (resolve (:result message))))]
+          (swap! session update :handler-by-called-method-id assoc called-method-id response-handler)
+          (send-message (-> message
+                            (assoc :jsonrpc "2.0"
+                                   :id called-method-id))))))))
+
+(defn- route-message
+  "Returns a Promesa promise which handles a given json-rpc-message."
+  [{:keys [session message] :as context}]
+  (if (contains? message :method)
+    (let [{:keys [id method]} message
+          handler (-> @session :handler-by-method (get method))]
+      (if (nil? handler)
+        (json-rpc/method-not-found-response id)
+        (if (nil? id)
+          ;; Notification, shall not return a result
+          (do
+            (handler context)
+            nil)
+          ;; Method call, cancellable, with result value when not cancelled
+          (let [is-cancelled (atom false)
+                context (assoc context :is-cancelled is-cancelled)]
+            (swap! session update :is-cancelled-by-message-id assoc id is-cancelled)
+            (-> (handler context)
+                (p/then (fn [result]
+                          (when-not @is-cancelled
+                            {:jsonrpc "2.0"
+                             :result result
+                             :id id})))
+                (p/handle (fn [result error]
+                            ;; Clean up, side effect
+                            (swap! session update :is-cancelled-by-message-id dissoc id)
+
+                            ;; Pass through as if this p/handle was not there.
+                            ;; We avoided using p/finally because it does not allow chaining further promises.
+                            (or error result))))))))
+    ;; Method call response
+    (if (and (contains? message :id)
+             (or (contains? message :result)
+                 (contains? message :error)))
+      (if-some [handler (-> @session :handler-by-called-method-id (get (:id message)))]
+        (do
+          (handler context)
+          nil)
+        ;; TODO: handle the case where the id is unknown to us.
+        ,)
+      ;; TODO: handle the message's structural problem.
+      ,)))
+
+(defn handle-message [context]
+  (let [{:keys [message send-message]} context]
+    (if (vector? message)
+      ;; It is a batch message, if we respond it should be a batch response
+      (let [batch-response (->> message
+                                (mapv (fn [message]
+                                        (route-message (assoc context :message message)))))]
+        (-> (p/all batch-response)
+            (p/then (fn [batch-response]
+                      (let [batch-response (filterv some? batch-response)]
+                        (when (seq batch-response)
+                          (send-message batch-response)))))))
+      ;; It is a single message
+      (-> (route-message context)
+          (p/then (fn [response]
+                    (when (some? response)
+                      (send-message response))))))))

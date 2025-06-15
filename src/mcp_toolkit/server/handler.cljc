@@ -1,29 +1,8 @@
 (ns mcp-toolkit.server.handler
   (:require [mate.core :as mc]
-            [mcp-toolkit.server.json-rpc-message :as json-rpc]
+            [mcp-toolkit.json-rpc.handler :as json-rpc.handler]
+            [mcp-toolkit.json-rpc.message :as message]
             [promesa.core :as p]))
-
-(defn call-remote-method
-  "Returns a promise which either
-   resolves with the message's result or
-   rejects with the message's error."
-  [context {:keys [method params] :as message}]
-  (let [{:keys [session send-message]} context
-        ;; Pick a unique method id for a client call. Robust to concurrent calls.
-        ;; TODO: ensure it loops when reaching the maximum integer value.
-        client-method-id (-> (swap! session update :last-used-client-method-id inc)
-                             :last-used-client-method-id)]
-    (p/create
-      (fn [resolve reject]
-        (let [response-handler (fn [{:keys [session message]}]
-                                 (swap! session update :handler-by-client-method-id dissoc client-method-id)
-                                 (if (contains? message :error)
-                                   (reject (:error message))
-                                   (resolve (:result message))))]
-          (swap! session update :handler-by-client-method-id assoc client-method-id response-handler)
-          (send-message (-> message
-                            (assoc :jsonrpc "2.0"
-                                   :id client-method-id))))))))
 
 (defn ping-handler [context]
   {})
@@ -38,10 +17,10 @@
     (case (:type ref)
       "ref/prompt" (if-some [complete-fn (-> @session :prompt-by-name (get (:name ref)) :complete-fn)]
                      (complete-fn context (:name argument) (:value argument))
-                     (json-rpc/method-not-found-response (:id message)))
+                     (message/method-not-found-response (:id message)))
       "ref/resource" (if-some [complete-fn (:resource-uri-complete-fn @session)]
                        (complete-fn context (:uri ref) (:name argument) (:value argument))
-                       (json-rpc/method-not-found-response (:id message))))))
+                       (message/method-not-found-response (:id message))))))
 
 (defn prompt-list-handler [{:keys [session]}]
   {:prompts (-> @session :prompt-by-name vals
@@ -54,7 +33,7 @@
   (let [{:keys [name arguments]} (:params message)]
     (if-some [prompt-fn (-> @session :prompt-by-name (get name) :prompt-fn)]
       (prompt-fn context arguments)
-      (json-rpc/method-not-found-response (:id message)))))
+      (message/method-not-found-response (:id message)))))
 
 (defn resource-list-handler [{:keys [session]}]
   {:resources (-> @session :resource-by-uri vals
@@ -70,7 +49,7 @@
   (let [{:keys [uri]} (:params message)]
     (if-some [resource (-> @session :resource-by-uri (get uri))]
       {:contents [(select-keys resource [:uri :description :mimeType :text :blob])]} ; either text or blob
-      (json-rpc/resource-not-found (:id message) uri))))
+      (message/resource-not-found (:id message) uri))))
 
 (defn resource-subscribe-handler [{:keys [session message]}]
   (let [{:keys [uri]} (:params message)]
@@ -97,7 +76,7 @@
                      {:content [{:type "text"
                                  :text (ex-message exception)}]
                       :isError true})))
-      (json-rpc/invalid-tool-name (:id message) name))))
+      (message/invalid-tool-name (:id message) name))))
 
 (defn cancelled-notification-handler [{:keys [session message]}]
   (when-some [is-cancelled-atom (-> @session :is-cancelled-by-message-id (get (-> message :params :requestId)))]
@@ -106,7 +85,7 @@
 (defn roots-changed-notification-handler [context]
   (let [{:keys [session]} context]
     ;; Let's ask the client what the roots are.
-    (-> (call-remote-method context {:method "roots/list"})
+    (-> (json-rpc.handler/call-remote-method context {:method "roots/list"})
         (p/then (fn [result]
                   ;; Replace the old roots by the new ones
                   (swap! session assoc :client-root-by-uri
@@ -114,6 +93,25 @@
 
                   (when-some [on-client-roots-updated (:on-client-roots-updated @session)]
                     (on-client-roots-updated context)))))))
+
+(def handler-by-method-post-initialization
+  {"ping"                             ping-handler
+   "logging/setLevel"                 set-logging-level-handler
+   "completion/complete"              completion-complete-handler
+   "prompts/list"                     prompt-list-handler
+   "prompts/get"                      prompt-get-handler
+   "resources/list"                   resource-list-handler
+   "resources/read"                   resource-read-handler
+   "resources/templates/list"         resource-templates-list-handler
+   "resources/subscribe"              resource-subscribe-handler
+   "resources/unsubscribe"            resource-unsubscribe-handler
+   "tools/list"                       tool-list-handler
+   "tools/call"                       tool-call-handler
+   "notifications/cancelled"          cancelled-notification-handler
+   "notifications/roots/list_changed" roots-changed-notification-handler})
+
+
+;; Initialization phase, a handshake where protocol versions are tentatively agreed.
 
 (defn initialize-handler [{:keys [session message]}]
   (let [{client-protocol-version :protocolVersion
@@ -140,8 +138,15 @@
         (cond-> (some? server-instructions) (assoc :instructions server-instructions)))))
 
 (defn initialized-notification-handler [{:keys [session] :as context}]
-  (swap! session assoc :initialized true)
+  (swap! session assoc
+         :initialized true
+         :handler-by-method handler-by-method-post-initialization)
 
   ;; Let's get the roots from the client
   (when (contains? (:client-capabilities @session) :roots)
     (roots-changed-notification-handler context)))
+
+(def handler-by-method-pre-initialization
+  {"ping"                      ping-handler
+   "initialize"                initialize-handler
+   "notifications/initialized" initialized-notification-handler})
