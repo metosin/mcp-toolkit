@@ -24,6 +24,10 @@
                             (assoc :jsonrpc "2.0"
                                    :id called-method-id))))))))
 
+(defn send-message [context message]
+  (let [{:keys [send-message]} context]
+    (send-message message)))
+
 (defn- route-message
   "Returns a Promesa promise which handles a given json-rpc-message."
   [{:keys [session message] :as context}]

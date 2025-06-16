@@ -54,11 +54,12 @@
 ;;
 
 (defn notify-progress [context progress]
-  (let [{:keys [message send-message]} context]
+  (let [{:keys [message]} context]
     (when-some [progress-token (-> message :params :_meta :progressToken)]
-      (send-message (json-rpc.message/notification "progress"
-                                                   (-> {:progressToken progress-token}
-                                                       (into progress)))))))
+      (json-rpc.handler/send-message context (json-rpc.message/notification "progress"
+                                                                            (-> {:progressToken progress-token}
+                                                                                (into progress))))))
+  nil)
 
 (def ^:private log-level->importance
   {"debug"     0
@@ -71,13 +72,14 @@
    "emergency" 7})
 
 (defn send-log-data [context level logger data]
-  (let [{:keys [session send-message]} context
+  (let [{:keys [session]} context
         client-logging-level (:client-logging-level @session)]
     (when (>= (log-level->importance level -1) (log-level->importance client-logging-level))
-      (send-message (json-rpc.message/notification "message"
-                                                   {:level level
-                                                    :logger logger
-                                                    :data data})))))
+      (json-rpc.handler/send-message context (json-rpc.message/notification "message"
+                                                                            {:level level
+                                                                             :logger logger
+                                                                             :data data}))))
+  nil)
 
 (defn request-sampling
   "Returns a promise, either resolved with the result or rejected with the error."
@@ -85,15 +87,15 @@
   (let [{:keys [session]} context]
     (when (contains? (:client-capabilities @session) :sampling)
       (json-rpc.handler/call-remote-method context {:method "sampling/createMessage"
-                                                    :params params}))))
+                                                    :params params})))
+  nil)
 
 ;;
 ;; Functions typically called by hand from a REPL session while working on MCP tooling
 ;;
 
 (defn notify-prompts-updated [context]
-  (let [{:keys [send-message]} context]
-    (send-message (json-rpc.message/notification "prompt/list_changed")))
+  (json-rpc.handler/send-message context (json-rpc.message/notification "prompt/list_changed"))
   nil)
 
 (defn add-prompt [context prompt]
@@ -109,17 +111,16 @@
   nil)
 
 (defn notify-resource-updated [context resource]
-  (let [{:keys [session send-message]} context
+  (let [{:keys [session]} context
         {:keys [client-subscribed-resource-uris]} @session
         {:keys [uri]} resource]
     (when (contains? client-subscribed-resource-uris uri)
-      (send-message (json-rpc.message/notification "resources/updated"
-                                                   {:uri uri}))))
+      (json-rpc.handler/send-message context (json-rpc.message/notification "resources/updated"
+                                                                            {:uri uri}))))
   nil)
 
 (defn notify-resources-updated [context]
-  (let [{:keys [send-message]} context]
-    (send-message (json-rpc.message/notification "resources/list_changed")))
+  (json-rpc.handler/send-message context (json-rpc.message/notification "resources/list_changed"))
   nil)
 
 (defn add-resource [context resource]
@@ -135,8 +136,7 @@
   nil)
 
 (defn notify-tools-updated [context]
-  (let [{:keys [send-message]} context]
-    (send-message (json-rpc.message/notification "tools/list_changed")))
+  (json-rpc.handler/send-message context (json-rpc.message/notification "tools/list_changed"))
   nil)
 
 (defn add-tool [context tool]
