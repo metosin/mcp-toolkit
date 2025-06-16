@@ -1,7 +1,8 @@
 (ns example.my-server
   (:require [clojure.string :as str]
             [mcp-toolkit.server.core :as server]
-            [mcp-toolkit.server.json-rpc-message :as json-rpc]
+            [mcp-toolkit.json-rpc.handler :as json-rpc.handler]
+            [mcp-toolkit.json-rpc.message :as json-rpc.message]
             [promesa.core :as p]
             #?(:clj [jsonista.core :as j])
             #?(:clj [nrepl.server :as nrepl]))
@@ -128,13 +129,13 @@
                            ;; In this simple example, we naively assume that there is a json object per line.
                            (-> (j/read-value line json-mapper))
                            (catch Exception e
-                             (send-message json-rpc/parse-error-response)
+                             (send-message json-rpc.message/parse-error-response)
                              nil))]
              (if (nil? message)
                (recur)
                (do
-                 (server/handle-message (-> context
-                                            (assoc :message message)))
+                 (json-rpc.handler/handle-message (-> context
+                                                      (assoc :message message)))
                  (recur)))))))))
 
 #?(:clj
@@ -176,7 +177,7 @@
                                                     (catch js/SyntaxError e
                                                       (js/process.stderr.write (str "<<-" line "->>"))
                                                       nil))]
-                                (server/handle-message (assoc context :message message))))))
+                                (json-rpc.handler/handle-message (assoc context :message message))))))
      (js/process.stdin.on "end"
                           (fn []
                             (js/process.exit 0)))))

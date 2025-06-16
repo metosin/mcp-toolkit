@@ -1,7 +1,7 @@
 (ns mcp-toolkit.server.handler
   (:require [mate.core :as mc]
             [mcp-toolkit.json-rpc.handler :as json-rpc.handler]
-            [mcp-toolkit.json-rpc.message :as message]
+            [mcp-toolkit.json-rpc.message :as json-rpc.message]
             [promesa.core :as p]))
 
 (defn ping-handler [context]
@@ -17,10 +17,10 @@
     (case (:type ref)
       "ref/prompt" (if-some [complete-fn (-> @session :prompt-by-name (get (:name ref)) :complete-fn)]
                      (complete-fn context (:name argument) (:value argument))
-                     (message/method-not-found-response (:id message)))
+                     (json-rpc.message/method-not-found-response (:id message)))
       "ref/resource" (if-some [complete-fn (:resource-uri-complete-fn @session)]
                        (complete-fn context (:uri ref) (:name argument) (:value argument))
-                       (message/method-not-found-response (:id message))))))
+                       (json-rpc.message/method-not-found-response (:id message))))))
 
 (defn prompt-list-handler [{:keys [session]}]
   {:prompts (-> @session :prompt-by-name vals
@@ -33,7 +33,7 @@
   (let [{:keys [name arguments]} (:params message)]
     (if-some [prompt-fn (-> @session :prompt-by-name (get name) :prompt-fn)]
       (prompt-fn context arguments)
-      (message/method-not-found-response (:id message)))))
+      (json-rpc.message/method-not-found-response (:id message)))))
 
 (defn resource-list-handler [{:keys [session]}]
   {:resources (-> @session :resource-by-uri vals
@@ -49,7 +49,7 @@
   (let [{:keys [uri]} (:params message)]
     (if-some [resource (-> @session :resource-by-uri (get uri))]
       {:contents [(select-keys resource [:uri :description :mimeType :text :blob])]} ; either text or blob
-      (message/resource-not-found (:id message) uri))))
+      (json-rpc.message/resource-not-found (:id message) uri))))
 
 (defn resource-subscribe-handler [{:keys [session message]}]
   (let [{:keys [uri]} (:params message)]
@@ -76,7 +76,7 @@
                      {:content [{:type "text"
                                  :text (ex-message exception)}]
                       :isError true})))
-      (message/invalid-tool-name (:id message) name))))
+      (json-rpc.message/invalid-tool-name (:id message) name))))
 
 (defn cancelled-notification-handler [{:keys [session message]}]
   (when-some [is-cancelled-atom (-> @session :is-cancelled-by-message-id (get (-> message :params :requestId)))]

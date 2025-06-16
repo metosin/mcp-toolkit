@@ -1,7 +1,8 @@
 (ns mcp-toolkit.server.core
   (:require [mate.core :as mc]
-            [mcp-toolkit.json-rpc.message :as json-rpc]
-            [mcp-toolkit.server.handler :as handler]))
+            [mcp-toolkit.json-rpc.handler :as json-rpc.handler]
+            [mcp-toolkit.json-rpc.message :as json-rpc.message]
+            [mcp-toolkit.server.handler :as server.handler]))
 
 (defn create-session
   "Returns the state of a newly created session inside an atom."
@@ -26,7 +27,7 @@
          :server-instructions                server-instructions
 
          :initialized                        false
-         :handler-by-method                  handler/handler-by-method-pre-initialization
+         :handler-by-method                  server.handler/handler-by-method-pre-initialization
 
          :protocol-version                   nil ; determined at initialization
          :prompt-by-name                     (mc/index-by :name prompts)
@@ -55,9 +56,9 @@
 (defn notify-progress [context progress]
   (let [{:keys [message send-message]} context]
     (when-some [progress-token (-> message :params :_meta :progressToken)]
-      (send-message (json-rpc/notification "progress"
-                                           (-> {:progressToken progress-token}
-                                               (into progress)))))))
+      (send-message (json-rpc.message/notification "progress"
+                                                   (-> {:progressToken progress-token}
+                                                       (into progress)))))))
 
 (def ^:private log-level->importance
   {"debug"     0
@@ -73,18 +74,18 @@
   (let [{:keys [session send-message]} context
         client-logging-level (:client-logging-level @session)]
     (when (>= (log-level->importance level -1) (log-level->importance client-logging-level))
-      (send-message (json-rpc/notification "message"
-                                           {:level level
-                                            :logger logger
-                                            :data data})))))
+      (send-message (json-rpc.message/notification "message"
+                                                   {:level level
+                                                    :logger logger
+                                                    :data data})))))
 
 (defn request-sampling
   "Returns a promise, either resolved with the result or rejected with the error."
   [context params]
   (let [{:keys [session]} context]
     (when (contains? (:client-capabilities @session) :sampling)
-      (handler/call-remote-method context {:method "sampling/createMessage"
-                                           :params params}))))
+      (json-rpc.handler/call-remote-method context {:method "sampling/createMessage"
+                                                    :params params}))))
 
 ;;
 ;; Functions typically called by hand from a REPL session while working on MCP tooling
@@ -92,7 +93,7 @@
 
 (defn notify-prompts-updated [context]
   (let [{:keys [send-message]} context]
-    (send-message (json-rpc/notification "prompt/list_changed")))
+    (send-message (json-rpc.message/notification "prompt/list_changed")))
   nil)
 
 (defn add-prompt [context prompt]
@@ -112,13 +113,13 @@
         {:keys [client-subscribed-resource-uris]} @session
         {:keys [uri]} resource]
     (when (contains? client-subscribed-resource-uris uri)
-      (send-message (json-rpc/notification "resources/updated"
-                                           {:uri uri}))))
+      (send-message (json-rpc.message/notification "resources/updated"
+                                                   {:uri uri}))))
   nil)
 
 (defn notify-resources-updated [context]
   (let [{:keys [send-message]} context]
-    (send-message (json-rpc/notification "resources/list_changed")))
+    (send-message (json-rpc.message/notification "resources/list_changed")))
   nil)
 
 (defn add-resource [context resource]
@@ -135,7 +136,7 @@
 
 (defn notify-tools-updated [context]
   (let [{:keys [send-message]} context]
-    (send-message (json-rpc/notification "tools/list_changed")))
+    (send-message (json-rpc.message/notification "tools/list_changed")))
   nil)
 
 (defn add-tool [context tool]
