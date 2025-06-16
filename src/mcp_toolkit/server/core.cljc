@@ -2,7 +2,7 @@
   (:require [mate.core :as mc]
             [mcp-toolkit.json-rpc.handler :as json-rpc.handler]
             [mcp-toolkit.json-rpc.message :as json-rpc.message]
-            [mcp-toolkit.server.handler :as server.handler]))
+            [mcp-toolkit.server.impl.handler :as server.handler]))
 
 (defn create-session
   "Returns the state of a newly created session inside an atom."
