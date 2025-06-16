@@ -20,34 +20,34 @@
     :or {server-info {:name    "mcp-toolkit"
                       :version "0.0.1"}
          client-logging-level "info"}}]
-  (atom {;; About the server
-         :server-supported-protocol-versions ["2024-11-05"
-                                              "2025-03-26"]
-         :server-info                        server-info
-         :server-instructions                server-instructions
+  {;; About the server
+   :server-supported-protocol-versions ["2024-11-05"
+                                        "2025-03-26"]
+   :server-info                        server-info
+   :server-instructions                server-instructions
 
-         :initialized                        false
-         :handler-by-method                  server.handler/handler-by-method-pre-initialization
+   :initialized                        false
+   :handler-by-method                  server.handler/handler-by-method-pre-initialization
 
-         :protocol-version                   nil ; determined at initialization
-         :prompt-by-name                     (mc/index-by :name prompts)
-         :resource-by-uri                    (mc/index-by :uri resources)
-         :tool-by-name                       (mc/index-by :name tools)
-         :resource-templates                 resource-templates
-         :resource-uri-complete-fn           resource-uri-complete-fn
-         :is-cancelled-by-message-id         {} ;; "is-cancelled" atoms indexed by message-id
-         :on-client-roots-updated            on-client-roots-updated
+   :protocol-version                   nil ; determined at initialization
+   :prompt-by-name                     (mc/index-by :name prompts)
+   :resource-by-uri                    (mc/index-by :uri resources)
+   :tool-by-name                       (mc/index-by :name tools)
+   :resource-templates                 resource-templates
+   :resource-uri-complete-fn           resource-uri-complete-fn
+   :is-cancelled-by-message-id         {} ;; "is-cancelled" atoms indexed by message-id
+   :on-client-roots-updated            on-client-roots-updated
 
-         ;; About the client
-         :client-info                        nil
-         :client-capabilities                nil
-         :client-subscribed-resource-uris    #{}
-         :client-root-by-uri                 {}
-         :client-logging-level               client-logging-level
+   ;; About the client
+   :client-info                        nil
+   :client-capabilities                nil
+   :client-subscribed-resource-uris    #{}
+   :client-root-by-uri                 {}
+   :client-logging-level               client-logging-level
 
-         :last-called-method-id              -1 ;; Used for calling methods on the remote site
-         :handler-by-called-method-id        {} ;; The response handlers
-         ,}))
+   :last-called-method-id              -1 ;; Used for calling methods on the remote site
+   :handler-by-called-method-id        {} ;; The response handlers
+   ,})
 
 ;;
 ;; Functions typically called from a prompt-fn or a tool-fn

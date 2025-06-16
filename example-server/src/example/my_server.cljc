@@ -94,12 +94,13 @@
 ;;
 
 (def session
-  (server/create-session {:prompts [talk-like-pirate-prompt]
-                          :resources [hello-world-resource]
-                          :tools [parentify-tool]
-                          :resource-templates my-resource-templates
-                          :resource-uri-complete-fn my-resource-uri-complete-fn
-                          :on-client-roots-updated (fn [context] ,,,)}))
+  (atom
+    (server/create-session {:prompts [talk-like-pirate-prompt]
+                            :resources [hello-world-resource]
+                            :tools [parentify-tool]
+                            :resource-templates my-resource-templates
+                            :resource-uri-complete-fn my-resource-uri-complete-fn
+                            :on-client-roots-updated (fn [context] ,,,)})))
 
 ;;
 ;; Platform-specific threading, transport & I/O stuffs
