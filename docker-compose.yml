@@ -1,5 +1,5 @@
 services:
-  mcp:
+  mcp-server:
     build: .
     volumes:
       - .:/app

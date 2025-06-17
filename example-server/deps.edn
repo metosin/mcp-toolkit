@@ -7,10 +7,10 @@
         fi.metosin/mcp-toolkit         {:local/root ".."}
         ,}
 
- :aliases {;; clojure -X:mcp
-           :mcp {:exec-fn example.my-server/main
-                 :exec-args {:bind "127.0.0.1"
-                             :port 7925}}
+ :aliases {;; clojure -X:mcp-server
+           :mcp-server {:exec-fn example.my-server/main
+                        :exec-args {:bind "127.0.0.1"
+                                    :port 7925}}
 
            ;; clojure -M:outdated --upgrade
            :outdated {:extra-deps {com.github.liquidz/antq {:mvn/version "2.11.1276"}}

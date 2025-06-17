@@ -17,7 +17,7 @@ Configuration example for file located at
       "command": "/bin/sh",
       "args": [
         "-c",
-        "cd <example-mcp-server-path> && clojure -X:mcp"
+        "cd <example-mcp-server-path> && clojure -X:mcp-server"
       ]
     }
   }
@@ -50,7 +50,7 @@ In `claude_desktop_config.json`, change the config to:
       "command": "/bin/sh",
       "args": [
         "-c",
-        "cd <mcp-toolkit-lib-path> && docker-compose run --service-ports --rm mcp clojure -X:mcp '{:bind \"0.0.0.0\"}'"
+        "cd <mcp-toolkit-lib-path> && docker-compose run --service-ports --rm mcp-server clojure -X:mcp-server '{:bind \"0.0.0.0\"}'"
       ]
     }
   }
@@ -62,7 +62,7 @@ In `claude_desktop_config.json`, change the config to:
 ## Testing
 
 ```shell
-npx @modelcontextprotocol/inspector clojure -X:mcp
+npx @modelcontextprotocol/inspector clojure -X:mcp-server
 ```
 
 ## Running the server on NodeJS
