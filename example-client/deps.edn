@@ -1,0 +1,15 @@
+{:paths ["src"]
+
+ :deps {org.clojure/clojure            {:mvn/version "1.12.1"}
+        org.clojure/clojurescript      {:mvn/version "1.12.42"}
+        thheller/shadow-cljs           {:mvn/version "3.1.6"}
+        fi.metosin/mcp-toolkit         {:local/root ".."}
+        ,}
+
+ :aliases {;; clojure -M:mcp-client
+           :mcp-client {:exec-fn example.my-client/main
+                        :main-opts ["-m" "example.my-client"]}
+
+           ;; clojure -M:outdated --upgrade
+           :outdated {:extra-deps {com.github.liquidz/antq {:mvn/version "2.11.1276"}}
+                      :main-opts  ["-m" "antq.core"]}}}

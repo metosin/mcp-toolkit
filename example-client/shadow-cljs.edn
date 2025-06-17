@@ -1,0 +1,5 @@
+{:deps true
+
+ :builds {:node-client {:target :node-script
+                        :main example.my-client/-main
+                        :output-to "out/node-client.js"}}}
