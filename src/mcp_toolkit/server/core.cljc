@@ -2,52 +2,13 @@
   (:require [mate.core :as mc]
             [mcp-toolkit.json-rpc.handler :as json-rpc.handler]
             [mcp-toolkit.json-rpc.message :as json-rpc.message]
-            [mcp-toolkit.server.impl.handler :as server.handler]))
+            [mcp-toolkit.server.impl.handler :as server.handler]
+            [promesa.core :as p]))
 
-(defn create-session
-  "Returns the state of a newly created session inside an atom."
-  [{:keys [server-info
-           server-instructions
-
-           ;; MCP server features
-           prompts
-           resources
-           tools
-           resource-templates
-           resource-uri-complete-fn
-           on-client-roots-updated
-           client-logging-level]
-    :or {server-info {:name    "mcp-toolkit"
-                      :version "0.0.1"}
-         client-logging-level "info"}}]
-  {;; About the server
-   :server-supported-protocol-versions ["2024-11-05"
-                                        "2025-03-26"]
-   :server-info                        server-info
-   :server-instructions                server-instructions
-
-   :initialized                        false
-   :handler-by-method                  server.handler/handler-by-method-pre-initialization
-
-   :protocol-version                   nil ; determined at initialization
-   :prompt-by-name                     (mc/index-by :name prompts)
-   :resource-by-uri                    (mc/index-by :uri resources)
-   :tool-by-name                       (mc/index-by :name tools)
-   :resource-templates                 resource-templates
-   :resource-uri-complete-fn           resource-uri-complete-fn
-   :is-cancelled-by-message-id         {} ;; "is-cancelled" atoms indexed by message-id
-   :on-client-roots-updated            on-client-roots-updated
-
-   ;; About the client
-   :client-info                        nil
-   :client-capabilities                nil
-   :client-subscribed-resource-uris    #{}
-   :client-root-by-uri                 {}
-   :client-logging-level               client-logging-level
-
-   :last-called-method-id              -1 ;; Used for calling methods on the remote site
-   :handler-by-called-method-id        {} ;; The response handlers
-   ,})
+(defn- user-callback [callback-key]
+  (fn [context]
+    (when-some [callback (-> context :session deref (get callback-key))]
+      (callback context))))
 
 ;;
 ;; Functions typically called from a prompt-fn or a tool-fn
@@ -71,24 +32,35 @@
    "alert"     6
    "emergency" 7})
 
-(defn send-log-data [context level logger data]
+(defn notify-log [context level logger data]
   (let [{:keys [session]} context
-        client-logging-level (:client-logging-level @session)]
-    (when (>= (log-level->importance level -1) (log-level->importance client-logging-level))
+        logging-level (:logging-level @session)]
+    (when (>= (log-level->importance level -1) (log-level->importance logging-level))
       (json-rpc.handler/send-message context (json-rpc.message/notification "message"
-                                                                            {:level level
+                                                                            {:level  level
                                                                              :logger logger
-                                                                             :data data}))))
+                                                                             :data   data}))))
   nil)
 
+(defn request-root-list [context]
+  (let [{:keys [session]} context
+        {:keys [client-capabilities]} @session]
+    (when (contains? client-capabilities :roots)
+      (-> (json-rpc.handler/call-remote-method context {:method "roots/list"})
+          (p/then (fn [result]
+                    (swap! session assoc :client-root-by-uri (mc/index-by :uri (:roots result)))
+                    ((user-callback :on-client-root-list-updated) context)
+                    nil))))))
+
+;; FIXME: implementation is not complete
 (defn request-sampling
   "Returns a promise, either resolved with the result or rejected with the error."
   [context params]
-  (let [{:keys [session]} context]
-    (when (contains? (:client-capabilities @session) :sampling)
+  (let [{:keys [session]} context
+        {:keys [client-capabilities]} @session]
+    (when (contains? client-capabilities :sampling)
       (json-rpc.handler/call-remote-method context {:method "sampling/createMessage"
-                                                    :params params})))
-  nil)
+                                                    :params params}))))
 
 ;;
 ;; Functions typically called by hand from a REPL session while working on MCP tooling
@@ -160,3 +132,56 @@
   (let [{:keys [session]} context]
     (swap! session assoc :resource-uri-complete-fn resource-uri-complete-fn))
   nil)
+
+;;
+;;
+;;
+
+(defn create-session
+  "Returns the state of a newly created session."
+  [{:keys [server-info
+           server-instructions
+
+           ;; MCP server features
+           prompts
+           resources
+           tools
+           resource-templates
+           resource-uri-complete-fn
+           logging-level
+           on-client-root-list-changed ;; called after the server get the notification from the client
+           on-client-root-list-updated ;; called after the server updated its data
+           ,]
+    :or   {server-info                 {:name    "mcp-toolkit"
+                                        :version "0.0.1"}
+           logging-level               "info"
+           on-client-root-list-changed request-root-list}}]
+  {;; About the server
+   :server-supported-protocol-versions ["2024-11-05"
+                                        "2025-03-26"]
+   :server-info                        server-info
+   :server-instructions                server-instructions
+
+   :initialized                        false
+   :handler-by-method                  server.handler/handler-by-method-pre-initialization
+
+   :protocol-version                   nil ; determined at initialization
+   :prompt-by-name                     (mc/index-by :name prompts)
+   :resource-by-uri                    (mc/index-by :uri resources)
+   :tool-by-name                       (mc/index-by :name tools)
+   :resource-templates                 resource-templates
+   :resource-uri-complete-fn           resource-uri-complete-fn
+   :is-cancelled-by-request-id         {} ;; "is-cancelled" atoms indexed by request-id
+   :logging-level                      logging-level
+   :on-client-root-list-changed        on-client-root-list-changed
+   :on-client-root-list-updated        on-client-root-list-updated
+
+   ;; About the client
+   :client-info                        nil
+   :client-capabilities                nil
+   :client-subscribed-resource-uris    #{}
+   :client-root-by-uri                 {}
+
+   :last-called-method-id              -1 ;; Used for calling methods on the remote site
+   :handler-by-called-method-id        {} ;; The response handlers
+   ,})

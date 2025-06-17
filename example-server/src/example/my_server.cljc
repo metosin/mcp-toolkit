@@ -99,8 +99,7 @@
                             :resources [hello-world-resource]
                             :tools [parentify-tool]
                             :resource-templates my-resource-templates
-                            :resource-uri-complete-fn my-resource-uri-complete-fn
-                            :on-client-roots-updated (fn [context] ,,,)})))
+                            :resource-uri-complete-fn my-resource-uri-complete-fn})))
 
 ;;
 ;; Platform-specific threading, transport & I/O stuffs

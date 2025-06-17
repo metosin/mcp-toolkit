@@ -28,6 +28,10 @@
   (let [{:keys [send-message]} context]
     (send-message message)))
 
+(defn close-connection [context]
+  (let [close-connection (:close-connection context)]
+    (close-connection)))
+
 (defn- route-message
   "Returns a Promesa promise which handles a given json-rpc-message."
   [{:keys [session message] :as context}]
@@ -44,7 +48,7 @@
           ;; Method call, cancellable, with result value when not cancelled
           (let [is-cancelled (atom false)
                 context (assoc context :is-cancelled is-cancelled)]
-            (swap! session update :is-cancelled-by-message-id assoc id is-cancelled)
+            (swap! session update :is-cancelled-by-request-id assoc id is-cancelled)
             (-> (handler context)
                 (p/then (fn [result]
                           (when-not @is-cancelled
@@ -53,7 +57,7 @@
                              :id id})))
                 (p/handle (fn [result error]
                             ;; Clean up, side effect
-                            (swap! session update :is-cancelled-by-message-id dissoc id)
+                            (swap! session update :is-cancelled-by-request-id dissoc id)
 
                             ;; Pass through as if this p/handle was not there.
                             ;; We avoided using p/finally because it does not allow chaining further promises.
