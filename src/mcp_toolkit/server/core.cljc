@@ -149,12 +149,14 @@
            resource-templates
            resource-uri-complete-fn
            logging-level
+           on-initialized
            on-client-root-list-changed ;; called after the server get the notification from the client
            on-client-root-list-updated ;; called after the server updated its data
            ,]
     :or   {server-info                 {:name    "mcp-toolkit"
                                         :version "0.0.1"}
            logging-level               "info"
+           on-initialized              request-root-list
            on-client-root-list-changed request-root-list}}]
   {;; About the server
    :server-supported-protocol-versions ["2024-11-05"
@@ -173,6 +175,8 @@
    :resource-uri-complete-fn           resource-uri-complete-fn
    :is-cancelled-by-request-id         {} ;; "is-cancelled" atoms indexed by request-id
    :logging-level                      logging-level
+
+   :on-initialized                     on-initialized
    :on-client-root-list-changed        on-client-root-list-changed
    :on-client-root-list-updated        on-client-root-list-updated
 

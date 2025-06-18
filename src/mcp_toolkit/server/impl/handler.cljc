@@ -136,10 +136,7 @@
   (swap! session assoc
          :initialized true
          :handler-by-method handler-by-method-post-initialization)
-
-  ;; Let's get the roots from the client
-  (when (contains? (:client-capabilities @session) :roots)
-    (roots-changed-notification-handler context)))
+  ((user-callback :on-initialized) context))
 
 (def handler-by-method-pre-initialization
   {"ping"                      ping-handler
