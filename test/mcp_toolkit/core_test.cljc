@@ -1,6 +1,6 @@
 (ns mcp-toolkit.core-test
   (:require [clojure.test :refer [deftest testing is are #?(:cljs async)]]
-            [mcp-toolkit.json-rpc.handler :as json-rpc.handler]
+            [mcp-toolkit.json-rpc :as json-rpc]
             [mcp-toolkit.client :as client]
             [mcp-toolkit.server :as server]
             [mcp-toolkit.test.util :as util]
@@ -56,8 +56,8 @@
                                     (p/let [message (sp/take input-channel)]
                                       (when (some? message) ; A nil message means that the channel was closed.
                                         (p/do
-                                          (json-rpc.handler/handle-message (-> context
-                                                                               (assoc :message message)))
+                                          (json-rpc/handle-message (-> context
+                                                                       (assoc :message message)))
                                           (p/recur))))))]
     ;; A promise for each site, to run a message processing loop.
     (message-processing-loop client-context server-output)

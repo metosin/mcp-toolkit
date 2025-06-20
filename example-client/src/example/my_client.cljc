@@ -1,7 +1,6 @@
 (ns example.my-client
   (:require [mcp-toolkit.client :as client]
-            [mcp-toolkit.json-rpc.handler :as json-rpc.handler]
-            [mcp-toolkit.json-rpc.message :as json-rpc.message]
+            [mcp-toolkit.json-rpc :as json-rpc]
             [promesa.core :as p]
             #?(:clj [jsonista.core :as j]))
   #?(:clj (:import (clojure.lang LineNumberingPushbackReader)
@@ -32,14 +31,14 @@
                            ;; In this simple example, we naively assume that there is a json object per line.
                            (-> (j/read-value line json-mapper))
                            (catch Exception e
-                             (send-message json-rpc.message/parse-error-response)
+                             (send-message json-rpc/parse-error-response)
                              nil))]
              (if (nil? message)
                (recur)
                (do
                  (prn [:<-- message])
-                 (json-rpc.handler/handle-message (-> context
-                                                      (assoc :message message)))
+                 (json-rpc/handle-message (-> context
+                                              (assoc :message message)))
                  (recur)))))))))
 
 (def context (atom nil))

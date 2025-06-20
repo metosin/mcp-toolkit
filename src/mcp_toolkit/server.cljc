@@ -1,7 +1,6 @@
 (ns mcp-toolkit.server
   (:require [mate.core :as mc]
-            [mcp-toolkit.json-rpc.handler :as json-rpc.handler]
-            [mcp-toolkit.json-rpc.message :as json-rpc.message]
+            [mcp-toolkit.json-rpc :as json-rpc]
             [mcp-toolkit.impl.server.handler :as server.handler]
             [promesa.core :as p]))
 
@@ -17,9 +16,9 @@
 (defn notify-progress [context progress]
   (let [{:keys [message]} context]
     (when-some [progress-token (-> message :params :_meta :progressToken)]
-      (json-rpc.handler/send-message context (json-rpc.message/notification "progress"
-                                                                            (-> {:progressToken progress-token}
-                                                                                (into progress))))))
+      (json-rpc/send-message context (json-rpc/notification "progress"
+                                                            (-> {:progressToken progress-token}
+                                                                (into progress))))))
   nil)
 
 (def ^:private log-level->importance
@@ -36,17 +35,17 @@
   (let [{:keys [session]} context
         logging-level (:logging-level @session)]
     (when (>= (log-level->importance level -1) (log-level->importance logging-level))
-      (json-rpc.handler/send-message context (json-rpc.message/notification "message"
-                                                                            {:level  level
-                                                                             :logger logger
-                                                                             :data   data}))))
+      (json-rpc/send-message context (json-rpc/notification "message"
+                                                            {:level  level
+                                                             :logger logger
+                                                             :data   data}))))
   nil)
 
 (defn request-root-list [context]
   (let [{:keys [session]} context
         {:keys [client-capabilities]} @session]
     (when (contains? client-capabilities :roots)
-      (-> (json-rpc.handler/call-remote-method context {:method "roots/list"})
+      (-> (json-rpc/call-remote-method context {:method "roots/list"})
           (p/then (fn [result]
                     (swap! session assoc :client-root-by-uri (mc/index-by :uri (:roots result)))
                     ((user-callback :on-client-root-list-updated) context)
@@ -59,15 +58,15 @@
   (let [{:keys [session]} context
         {:keys [client-capabilities]} @session]
     (when (contains? client-capabilities :sampling)
-      (json-rpc.handler/call-remote-method context {:method "sampling/createMessage"
-                                                    :params params}))))
+      (json-rpc/call-remote-method context {:method "sampling/createMessage"
+                                            :params params}))))
 
 ;;
 ;; Functions typically called by hand from a REPL session while working on MCP tooling
 ;;
 
 (defn notify-prompts-updated [context]
-  (json-rpc.handler/send-message context (json-rpc.message/notification "prompt/list_changed"))
+  (json-rpc/send-message context (json-rpc/notification "prompt/list_changed"))
   nil)
 
 (defn add-prompt [context prompt]
@@ -87,12 +86,12 @@
         {:keys [client-subscribed-resource-uris]} @session
         {:keys [uri]} resource]
     (when (contains? client-subscribed-resource-uris uri)
-      (json-rpc.handler/send-message context (json-rpc.message/notification "resources/updated"
-                                                                            {:uri uri}))))
+      (json-rpc/send-message context (json-rpc/notification "resources/updated"
+                                                            {:uri uri}))))
   nil)
 
 (defn notify-resources-updated [context]
-  (json-rpc.handler/send-message context (json-rpc.message/notification "resources/list_changed"))
+  (json-rpc/send-message context (json-rpc/notification "resources/list_changed"))
   nil)
 
 (defn add-resource [context resource]
@@ -108,7 +107,7 @@
   nil)
 
 (defn notify-tools-updated [context]
-  (json-rpc.handler/send-message context (json-rpc.message/notification "tools/list_changed"))
+  (json-rpc/send-message context (json-rpc/notification "tools/list_changed"))
   nil)
 
 (defn add-tool [context tool]

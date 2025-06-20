@@ -1,6 +1,56 @@
-(ns mcp-toolkit.json-rpc.handler
-  (:require [promesa.core :as p]
-            [mcp-toolkit.json-rpc.message :as json-rpc]))
+(ns mcp-toolkit.json-rpc
+  (:require [promesa.core :as p]))
+
+;;
+;; https://www.jsonrpc.org/specification
+;;
+
+;; rpc call with invalid JSON:
+(def parse-error-response
+  {:jsonrpc "2.0"
+   :error {:code -32700
+           :message "Parse error"}
+   :id nil})
+
+;; rpc call of non-existent method:
+(defn method-not-found-response [id]
+  {:jsonrpc "2.0"
+   :error {:code -32601
+           :message "Method not found"}
+   :id id})
+
+;; rpc call with invalid Request object:
+(def invalid-request-response
+  {:jsonrpc "2.0"
+   :error {:code -32600
+           :message "Invalid Request"}
+   :id nil})
+
+(defn resource-not-found [id uri]
+  {:jsonrpc "2.0"
+   :error {:code -32002
+           :message "Resource not found"
+           :data {:uri uri}}
+   :id id})
+
+(defn invalid-tool-name [id tool-name]
+  {:jsonrpc "2.0"
+   :error {:code -32602
+           :message (str "Unknown tool: " tool-name)}
+   :id id})
+
+(defn notification
+  ([topic]
+   {:jsonrpc "2.0"
+    :method (str "notifications/" topic)})
+  ([topic params]
+   (-> (notification topic)
+       (assoc :params params))))
+
+
+;;
+;;
+;;
 
 (defn call-remote-method
   "Returns a promise which either
@@ -39,7 +89,7 @@
     (let [{:keys [id method]} message
           handler (-> @session :handler-by-method (get method))]
       (if (nil? handler)
-        (json-rpc/method-not-found-response id)
+        (method-not-found-response id)
         (if (nil? id)
           ;; Notification, shall not return a result
           (do
