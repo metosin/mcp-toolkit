@@ -1,4 +1,4 @@
-(ns mcp-toolkit.client.impl.handler)
+(ns mcp-toolkit.impl.client.handler)
 
 (defn- user-callback [callback-key]
   (fn [context]

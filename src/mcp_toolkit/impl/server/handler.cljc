@@ -1,4 +1,4 @@
-(ns mcp-toolkit.server.impl.handler
+(ns mcp-toolkit.impl.server.handler
   (:require [mcp-toolkit.json-rpc.message :as json-rpc.message]
             [promesa.core :as p]))
 

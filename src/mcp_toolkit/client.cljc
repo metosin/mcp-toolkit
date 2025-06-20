@@ -2,7 +2,7 @@
   (:require [mate.core :as mc]
             [mcp-toolkit.json-rpc.handler :as json-rpc.handler]
             [mcp-toolkit.json-rpc.message :as json-rpc.message]
-            [mcp-toolkit.client.impl.handler :as client.handler]
+            [mcp-toolkit.impl.client.handler :as client.handler]
             [promesa.core :as p]))
 
 (defn- user-callback [callback-key]
