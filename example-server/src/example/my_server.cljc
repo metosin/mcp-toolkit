@@ -1,6 +1,6 @@
 (ns example.my-server
   (:require [clojure.string :as str]
-            [mcp-toolkit.server.core :as server]
+            [mcp-toolkit.server :as server]
             [mcp-toolkit.json-rpc.handler :as json-rpc.handler]
             [mcp-toolkit.json-rpc.message :as json-rpc.message]
             [promesa.core :as p]

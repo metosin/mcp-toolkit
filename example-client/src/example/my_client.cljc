@@ -1,5 +1,5 @@
 (ns example.my-client
-  (:require [mcp-toolkit.client.core :as client]
+  (:require [mcp-toolkit.client :as client]
             [mcp-toolkit.json-rpc.handler :as json-rpc.handler]
             [mcp-toolkit.json-rpc.message :as json-rpc.message]
             [promesa.core :as p]

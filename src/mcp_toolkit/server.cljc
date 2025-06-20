@@ -1,4 +1,4 @@
-(ns mcp-toolkit.server.core
+(ns mcp-toolkit.server
   (:require [mate.core :as mc]
             [mcp-toolkit.json-rpc.handler :as json-rpc.handler]
             [mcp-toolkit.json-rpc.message :as json-rpc.message]

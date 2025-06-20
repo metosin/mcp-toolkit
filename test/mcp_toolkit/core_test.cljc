@@ -1,8 +1,8 @@
 (ns mcp-toolkit.core-test
   (:require [clojure.test :refer [deftest testing is are #?(:cljs async)]]
             [mcp-toolkit.json-rpc.handler :as json-rpc.handler]
-            [mcp-toolkit.client.core :as client]
-            [mcp-toolkit.server.core :as server]
+            [mcp-toolkit.client :as client]
+            [mcp-toolkit.server :as server]
             [mcp-toolkit.test.util :as util]
             [promesa.core :as p]
             [promesa.exec.csp :as sp]))
