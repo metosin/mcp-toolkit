@@ -102,27 +102,27 @@
                                                                                  #_#_
                                                                                  :sampling {}}}})
         (p/then (fn [{:keys [protocolVersion capabilities serverInfo] :as result}]
-                  (prn [:result result])
                   (swap! session assoc
                     :server-protocol-version protocolVersion
                     :server-capabilities capabilities
                     :server-info serverInfo
                     :initialized true
                     :handler-by-method client.handler/handler-by-method-post-initialization)
-
                   (json-rpc.handler/send-message context (json-rpc.message/notification "initialized"))
+                  ((user-callback :on-initialized) context)))))
+  nil)
 
-                  (request-prompt-list context)
-                  (request-resource-list context)
-                  (request-tool-list context)
-
-                  nil)))))
+(defn- default-on-initialized [context]
+  (request-prompt-list context)
+  (request-resource-list context)
+  (request-tool-list context))
 
 (defn create-session
   "Returns the state of a newly created session."
   [{:keys [client-info
            protocol-version
            roots
+           on-initialized
            on-server-progress
            on-server-log
            on-server-prompt-list-changed
@@ -135,6 +135,7 @@
     :or   {client-info                     {:name    "mcp-toolkit"
                                             :version "0.0.1"}
            protocol-version                "2025-03-26"
+           on-initialized                  default-on-initialized
            on-server-prompt-list-changed   request-prompt-list
            on-server-resource-list-changed request-resource-list
            on-server-tool-list-changed     request-tool-list}}]
@@ -142,6 +143,7 @@
    :protocol-version            protocol-version
 
    :initialized                 false
+   :on-initialized              on-initialized
    :handler-by-method           client.handler/handler-by-method-pre-initialization
 
    :root-by-uri                 (mc/index-by :uri roots)
@@ -162,22 +164,3 @@
    :last-called-method-id       -1 ;; Used for calling methods on the remote site
    :handler-by-called-method-id {} ;; The response handlers
    ,})
-
-#_
-{:prompts   [{:name "pirate_mode_prompt"
-              :description "Talk like a pirate prompt"
-              :arguments [{:description "Comma-separated expressions"
-                           :name "expressions"
-                           :required false}]}]}
-#_
-{:resources [{:uri "file:///doc/hello.md"
-              :name "hello.md"
-              :description "Documentation's intro"
-              :mimeType "text/markdown; charset=UTF-8"}]}
-#_
-{:tools     [{:name "parentify"
-              :description "Parentify a text: wraps a text within parenthesis."
-              :inputSchema {:properties {:text {:description "the text to be parentified"
-                                                :type "string"}}
-                            :type "object"
-                            :required ["text"]}}]}

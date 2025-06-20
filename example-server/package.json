@@ -7,6 +7,6 @@
     "start": "node out/node-server.js"
   },
   "devDependencies": {
-    "shadow-cljs": "^3.1.6"
+    "shadow-cljs": "^3.1.7"
   }
 }

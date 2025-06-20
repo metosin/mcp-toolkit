@@ -39,6 +39,12 @@ See the `README.md` in the `example-server/` project to learn:
 - how to develop its components (prompts, resources and tools) via the REPL
 while the server is running.
 
+## Testing
+
+```shell
+./bin/kaocha --watch
+```
+
 ## Its place in the AI ecosystem
 
 MCP toolkit aims to be more convenient for the Clojure community than
