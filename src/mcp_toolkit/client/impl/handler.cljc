@@ -1,8 +1,4 @@
-(ns mcp-toolkit.client.impl.handler
-  (:require [mate.core :as mc]
-            [mcp-toolkit.json-rpc.handler :as json-rpc.handler]
-            [mcp-toolkit.json-rpc.message :as json-rpc.message]
-            [promesa.core :as p]))
+(ns mcp-toolkit.client.impl.handler)
 
 (defn- user-callback [callback-key]
   (fn [context]
