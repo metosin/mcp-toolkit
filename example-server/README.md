@@ -59,7 +59,7 @@ In `claude_desktop_config.json`, change the config to:
 
 .. then restart Claude Desktop.
 
-## Testing
+### Testing
 
 ```shell
 npx @modelcontextprotocol/inspector clojure -X:mcp-server
@@ -78,7 +78,8 @@ Run:
 node out/node-server.js
 ```
 
-Test:
+### Testing
+
 ```shell
 npx @modelcontextprotocol/inspector node out/node-server.js
 ```

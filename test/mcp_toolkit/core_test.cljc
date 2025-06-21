@@ -7,6 +7,10 @@
             [promesa.core :as p]
             [promesa.exec.csp :as sp]))
 
+(def test-root
+  {:uri "file:///home/user/projects/myproject"
+   :name "My Project"})
+
 (def test-prompt
   {:name "test_prompt"
    :description "Test prompt"

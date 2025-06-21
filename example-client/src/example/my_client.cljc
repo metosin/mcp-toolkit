@@ -12,6 +12,8 @@
 
 ;; Example of usage of this library.
 
+(def roots [[{:uri (str "file://" (-> (File. "my-root") (.getAbsolutePath)))
+              :name "My root"}]])
 
 ;;
 ;; Platform-specific threading, transport & I/O stuffs
@@ -27,26 +29,23 @@
        (loop []
          ;; line = nil means that the reader is closed
          (when-some [line (.readLine reader)]
-           (let [message (try
-                           ;; In this simple example, we naively assume that there is a json object per line.
-                           (-> (j/read-value line json-mapper))
-                           (catch Exception e
-                             (send-message json-rpc/parse-error-response)
-                             nil))]
-             (if (nil? message)
-               (recur)
-               (do
-                 (prn [:<-- message])
-                 (json-rpc/handle-message (-> context
-                                              (assoc :message message)))
-                 (recur)))))))))
+           (when-some [message (try
+                                 ;; In this simple example, we naively assume that there is a json object per line.
+                                 (-> (j/read-value line json-mapper))
+                                 (catch Exception e
+                                   (send-message json-rpc/parse-error-response)
+                                   nil))]
+             (prn [:<-- message])
+             (json-rpc/handle-message (-> context
+                                          (assoc :message message))))
+           (recur))))))
 
 (def context (atom nil))
 
 #?(:clj
    (defn -main [& args]
      (let [^Process server-process (-> (ProcessBuilder. ["clojure" "-X:mcp-server"])
-                                       (.directory (File. "./example-server"))
+                                       (.directory (File. "../example-server"))
                                        (.start))
            ;; A writer to write on the server's stdin
            writer (-> (.getOutputStream server-process)
@@ -59,10 +58,7 @@
                       (LineNumberingPushbackReader.))
 
            session (atom
-                     (client/create-session {:roots                       [{:uri (-> (File. "my-root") (.getAbsolutePath))}]
-                                             :on-server-prompts-updated   (fn [context] ,,,)
-                                             :on-server-resources-updated (fn [context] ,,,)
-                                             :on-server-tools-updated     (fn [context] ,,,)}))
+                     (client/create-session {:roots roots}))
 
            ctx {:session session
                 :send-message (let [json-mapper (j/object-mapper {:encode-key-fn name})]
@@ -72,24 +68,16 @@
                                   (.write writer "\n")
                                   (.flush writer)))
                 :close-connection (fn []
-                                    (.close reader))}
-
-           ;; Makes the context available as a top level var, for REPL users.
-           _ (reset! context ctx)
-
-           ,]
+                                    (.close reader)
+                                    (.close writer))}]
+       ;; Makes the context available as a top level var, for REPL use.
+       (reset! context ctx)
 
        ;; Listen on the reader in a separate thread.
-       (future
-         (prn "Reader thread started.")
+       (future (listen-messages ctx reader))
 
-         ;; Let's initiate the handshake
-         (client/send-first-handshake-message ctx)
-
-         ;; Blocking loop on the reader
-         (listen-messages ctx reader))
-
-       ,)))
+       ;; Initiate the handshake
+       (client/send-first-handshake-message ctx))))
 
 ;; on Node JS
 
@@ -103,6 +91,6 @@
 
   (-> @context :session deref)
 
-  (json-rpc.handler/close-connection @context)
+  (json-rpc/close-connection @context)
 
   ,)

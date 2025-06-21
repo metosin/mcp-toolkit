@@ -1,6 +1,14 @@
-# Example server
+# Example client
 
 This project is here to get you started and demonstrates how to use the mcp-toolkit library.
+
+## Running on the JVM
+
+The client launches the JVM example server when started.
+
+```shell
+clojure -M:mcp-client
+```
 
 ### License
 
