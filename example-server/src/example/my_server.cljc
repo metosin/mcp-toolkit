@@ -1,8 +1,7 @@
 (ns example.my-server
   (:require [clojure.string :as str]
-            [mcp-toolkit.server.core :as server]
-            [mcp-toolkit.json-rpc.handler :as json-rpc.handler]
-            [mcp-toolkit.json-rpc.message :as json-rpc.message]
+            [mcp-toolkit.server :as server]
+            [mcp-toolkit.json-rpc :as json-rpc]
             [promesa.core :as p]
             #?(:clj [jsonista.core :as j])
             #?(:clj [nrepl.server :as nrepl]))
@@ -99,8 +98,7 @@
                             :resources [hello-world-resource]
                             :tools [parentify-tool]
                             :resource-templates my-resource-templates
-                            :resource-uri-complete-fn my-resource-uri-complete-fn
-                            :on-client-roots-updated (fn [context] ,,,)})))
+                            :resource-uri-complete-fn my-resource-uri-complete-fn})))
 
 ;;
 ;; Platform-specific threading, transport & I/O stuffs
@@ -130,13 +128,13 @@
                            ;; In this simple example, we naively assume that there is a json object per line.
                            (-> (j/read-value line json-mapper))
                            (catch Exception e
-                             (send-message json-rpc.message/parse-error-response)
+                             (send-message json-rpc/parse-error-response)
                              nil))]
              (if (nil? message)
                (recur)
                (do
-                 (json-rpc.handler/handle-message (-> context
-                                                      (assoc :message message)))
+                 (json-rpc/handle-message (-> context
+                                              (assoc :message message)))
                  (recur)))))))))
 
 #?(:clj
@@ -176,9 +174,10 @@
                                                         js/JSON.parse
                                                         (js->clj :keywordize-keys true))
                                                     (catch js/SyntaxError e
+                                                      (json-rpc/send-message context json-rpc/parse-error-response)
                                                       (js/process.stderr.write (str "<<-" line "->>"))
                                                       nil))]
-                                (json-rpc.handler/handle-message (assoc context :message message))))))
+                                (json-rpc/handle-message (assoc context :message message))))))
      (js/process.stdin.on "end"
                           (fn []
                             (js/process.exit 0)))))

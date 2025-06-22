@@ -1,10 +1,10 @@
 {
-  "name": "example-server",
+  "name": "example-client",
   "private": true,
   "scripts": {
-    "build": "npx shadow-cljs compile :node-server",
+    "build": "npx shadow-cljs compile :node-client",
     "repl-server": "npx shadow-cljs node-repl",
-    "start": "node out/node-server.js"
+    "start": "node out/node-client.js"
   },
   "devDependencies": {
     "shadow-cljs": "^3.1.7"

@@ -17,7 +17,7 @@ Configuration example for file located at
       "command": "/bin/sh",
       "args": [
         "-c",
-        "cd <example-mcp-server-path> && clojure -X:mcp"
+        "cd <example-mcp-server-path> && clojure -X:mcp-server"
       ]
     }
   }
@@ -50,7 +50,7 @@ In `claude_desktop_config.json`, change the config to:
       "command": "/bin/sh",
       "args": [
         "-c",
-        "cd <mcp-toolkit-lib-path> && docker-compose run --service-ports --rm mcp clojure -X:mcp '{:bind \"0.0.0.0\"}'"
+        "cd <mcp-toolkit-lib-path> && docker-compose run --service-ports --rm mcp-server clojure -X:mcp-server '{:bind \"0.0.0.0\"}'"
       ]
     }
   }
@@ -59,26 +59,28 @@ In `claude_desktop_config.json`, change the config to:
 
 .. then restart Claude Desktop.
 
-## Testing
+### Testing
 
 ```shell
-npx @modelcontextprotocol/inspector clojure -X:mcp
+npx @modelcontextprotocol/inspector clojure -X:mcp-server
 ```
 
 ## Running the server on NodeJS
 
-Compile:
+Launch a nREPL server:
+```shell
+npx shadow-cljs node-repl
+```
+
+or directly compile and run:
 ```shell
 npm install
 npx shadow-cljs compile :node-server
-```
-
-Run:
-```shell
 node out/node-server.js
 ```
 
-Test:
+### Testing
+
 ```shell
 npx @modelcontextprotocol/inspector node out/node-server.js
 ```
