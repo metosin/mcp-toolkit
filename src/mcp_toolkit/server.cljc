@@ -2,12 +2,8 @@
   (:require [mate.core :as mc]
             [mcp-toolkit.json-rpc :as json-rpc]
             [mcp-toolkit.impl.server.handler :as server.handler]
+            [mcp-toolkit.impl.common :refer [user-callback]]
             [promesa.core :as p]))
-
-(defn- user-callback [callback-key]
-  (fn [context]
-    (when-some [callback (-> context :session deref (get callback-key))]
-      (callback context))))
 
 ;;
 ;; Functions typically called from a prompt-fn or a tool-fn

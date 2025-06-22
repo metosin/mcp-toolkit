@@ -44,16 +44,16 @@
                         :send-message (fn [message]
                                         (swap! message-logs conj [:-> message]) ; Used for tests
                                         (sp/put client-output message))         ; Transport client -> server
-                        :close-output (fn []
-                                        (sp/close! client-output))}
+                        :close-connection (fn []
+                                            (sp/close! client-output))}
 
         ;; Server
         server-context {:session (atom server-session)
                         :send-message (fn [message]
                                         (swap! message-logs conj [:<- message]) ; Used for tests
                                         (sp/put server-output message))         ; Transport server -> client
-                        :close-output (fn []
-                                        (sp/close! server-output))}
+                        :close-connection (fn []
+                                            (sp/close! server-output))}
 
         message-processing-loop (fn [context input-channel]
                                   (p/loop []
@@ -131,8 +131,8 @@
                             :method "notifications/initialized"}]]
                      @message-logs)))
             (p/handle (fn [x error]
-                        ((:close-output client-context))
-                        ((:close-output server-context))
+                        (json-rpc/close-connection client-context)
+                        (json-rpc/close-connection server-context)
 
                         ;; Pass through
                         (or error x))))))))

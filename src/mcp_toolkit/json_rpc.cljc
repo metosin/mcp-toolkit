@@ -79,7 +79,7 @@
     (send-message message)))
 
 (defn close-connection [context]
-  (let [close-connection (:close-connection context)]
+  (when-some [close-connection (:close-connection context)]
     (close-connection)))
 
 (defn- route-message

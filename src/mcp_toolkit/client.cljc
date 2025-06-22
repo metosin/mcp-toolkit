@@ -2,12 +2,8 @@
   (:require [mate.core :as mc]
             [mcp-toolkit.json-rpc :as json-rpc]
             [mcp-toolkit.impl.client.handler :as client.handler]
+            [mcp-toolkit.impl.common :refer [user-callback]]
             [promesa.core :as p]))
-
-(defn- user-callback [callback-key]
-  (fn [context]
-    (when-some [callback (-> context :session deref (get callback-key))]
-      (callback context))))
 
 (defn request-set-logging-level [context level]
   (json-rpc/call-remote-method context {:method "logging/setLevel"

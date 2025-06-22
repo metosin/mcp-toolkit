@@ -1,11 +1,7 @@
 (ns mcp-toolkit.impl.server.handler
   (:require [mcp-toolkit.json-rpc :as json-rpc]
+            [mcp-toolkit.impl.common :refer [user-callback]]
             [promesa.core :as p]))
-
-(defn- user-callback [callback-key]
-  (fn [context]
-    (when-some [callback (-> context :session deref (get callback-key))]
-      (callback context))))
 
 (defn ping-handler [context]
   {})

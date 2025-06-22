@@ -15,6 +15,8 @@
 (def roots [[{:uri (str "file://" (-> (File. "my-root") (.getAbsolutePath)))
               :name "My root"}]])
 
+(def context (atom nil))
+
 ;;
 ;; Platform-specific threading, transport & I/O stuffs
 ;;
@@ -39,8 +41,6 @@
              (json-rpc/handle-message (-> context
                                           (assoc :message message))))
            (recur))))))
-
-(def context (atom nil))
 
 #?(:clj
    (defn -main [& args]

@@ -1,9 +1,5 @@
-(ns mcp-toolkit.impl.client.handler)
-
-(defn- user-callback [callback-key]
-  (fn [context]
-    (when-some [callback (-> context :session deref (get callback-key))]
-      (callback context))))
+(ns mcp-toolkit.impl.client.handler
+  (:require [mcp-toolkit.impl.common :refer [user-callback]]))
 
 (defn ping-handler [context]
   {})
