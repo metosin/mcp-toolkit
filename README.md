@@ -42,6 +42,7 @@ while the server is running.
 ## Testing
 
 ```shell
+npm install
 ./bin/kaocha --watch
 ```
 
