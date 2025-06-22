@@ -18,6 +18,14 @@
 (def roots [[{:uri "file:///home/user/projects/my-root"
               :name "My project root"}]])
 
+(defn on-sampling-requested [context]
+  (let [{:keys [session message]} context]
+    {:role "assistant"
+     :content {:type "text"
+               :text "You are absolutely right, and the answer is 42."}
+     :model "The Hitchhiker's Guide to the Galaxy"
+     :stopReason "endTurn"}))
+
 (def context (atom nil))
 
 ;;
@@ -62,7 +70,8 @@
                       (LineNumberingPushbackReader.))
 
            session (atom
-                     (client/create-session {:roots roots}))
+                     (client/create-session {:roots roots
+                                             :on-sampling-requested on-sampling-requested}))
 
            ctx {:session session
                 :send-message (let [json-mapper (j/object-mapper {:encode-key-fn name})]
@@ -100,7 +109,8 @@
            reader (.-stdout server-process)
            
            session (atom
-                    (client/create-session {:roots roots}))
+                    (client/create-session {:roots roots
+                                            :on-sampling-requested on-sampling-requested}))
            
            ctx {:session session
                 :send-message (fn [message]
@@ -137,6 +147,7 @@
 
 (comment
 
+  (main)
   (-main)
 
   (-> @context :session deref)
