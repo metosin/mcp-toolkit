@@ -12,6 +12,7 @@
 (def handler-by-method-post-initialization
   {"ping"                                 ping-handler
    "roots/list"                           root-list-handler
+   "sampling/createMessage"               (user-callback :on-sampling-requested)
    "notifications/progress"               (user-callback :on-server-progress)
    "notifications/message"                (user-callback :on-server-log)
    "notifications/prompts/list_changed"   (user-callback :on-server-prompt-list-updated)

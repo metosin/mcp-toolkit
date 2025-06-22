@@ -89,13 +89,12 @@
 (defn send-first-handshake-message [context]
   (let [{:keys [session]} context
         {:keys [client-info
+                client-capabilities
                 protocol-version]} @session]
     (-> (json-rpc/call-remote-method context {:method "initialize"
                                               :params {:clientInfo      client-info
-                                                       :protocolVersion protocol-version
-                                                       :capabilities    {:roots    {:listChanged true}
-                                                                         #_#_
-                                                                         :sampling {}}}})
+                                                       :capabilities    client-capabilities
+                                                       :protocolVersion protocol-version}})
         (p/then (fn [{:keys [protocolVersion capabilities serverInfo] :as result}]
                   (swap! session assoc
                     :server-protocol-version protocolVersion
@@ -115,9 +114,11 @@
 (defn create-session
   "Returns the state of a newly created session."
   [{:keys [client-info
+           client-capabilities
            protocol-version
            roots
            on-initialized
+           on-sampling-requested
            on-server-progress
            on-server-log
            on-server-prompt-list-changed
@@ -129,12 +130,14 @@
            on-server-tool-list-updated]
     :or   {client-info                     {:name    "mcp-toolkit"
                                             :version "0.0.1"}
+           client-capabilities             {:roots    {:listChanged true}}
            protocol-version                "2025-03-26"
            on-initialized                  default-on-initialized
            on-server-prompt-list-changed   request-prompt-list
            on-server-resource-list-changed request-resource-list
            on-server-tool-list-changed     request-tool-list}}]
   {:client-info                 client-info
+   :client-capabilities         client-capabilities
    :protocol-version            protocol-version
 
    :initialized                 false
@@ -146,6 +149,8 @@
    :server-prompt-by-name       {}
    :server-resource-by-uri      {}
    :server-tool-by-name         {}
+
+   :on-sampling-requested           on-sampling-requested
    :on-server-progress              on-server-progress
    :on-server-log                   on-server-log
    :on-server-prompt-list-changed   on-server-prompt-list-changed

@@ -27,7 +27,7 @@ Tested on Claude Desktop and Claude Code, no problems found for the features imp
   - [x] Ping
   - [x] Progress
   - [x] Roots
-  - [ ] Sampling
+  - [x] Sampling
   - [x] Prompts
   - [x] Resources
   - [x] Tools
