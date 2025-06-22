@@ -174,6 +174,7 @@
                                                         js/JSON.parse
                                                         (js->clj :keywordize-keys true))
                                                     (catch js/SyntaxError e
+                                                      (json-rpc/send-message context json-rpc/parse-error-response)
                                                       (js/process.stderr.write (str "<<-" line "->>"))
                                                       nil))]
                                 (json-rpc/handle-message (assoc context :message message))))))

@@ -1,8 +1,11 @@
 (ns example.my-client
-  (:require [mcp-toolkit.client :as client]
+  (:require [clojure.string :as str]
+            [mcp-toolkit.client :as client]
             [mcp-toolkit.json-rpc :as json-rpc]
             [promesa.core :as p]
-            #?(:clj [jsonista.core :as j]))
+            #?(:clj [jsonista.core :as j])
+            #?(:cljs ["child_process" :refer [spawn]])
+            #?(:cljs ["path" :as path]))
   #?(:clj (:import (clojure.lang LineNumberingPushbackReader)
                    (java.io BufferedReader
                             BufferedWriter
@@ -44,7 +47,7 @@
 
 #?(:clj
    (defn -main [& args]
-     (let [;; Start a server
+     (let [;; Start a server process
            ^Process server-process (-> (ProcessBuilder. ["clojure" "-X:mcp-server"])
                                        (.directory (File. "../example-server"))
                                        (.start))
@@ -71,7 +74,7 @@
                 :close-connection (fn []
                                     (.close reader)
                                     (.close writer))}]
-       ;; Makes the context available as a top level var, for REPL use.
+       ;; Make the context available as a top level var, for REPL use.
        (reset! context ctx)
 
        ;; Listen on the reader in a separate thread.
@@ -81,6 +84,52 @@
        (client/send-first-handshake-message ctx))))
 
 ;; on Node JS
+
+#?(:cljs
+   (defn main [& args]
+     (let [;; Start a server process
+           server-process (spawn "clojure" #js ["-X:mcp-server"]
+                                #js {:cwd (.resolve path ".." "example-server")
+                                     :stdio #js ["pipe"    ; writable stdin
+                                                 "pipe"    ; writable stdout
+                                                 "inherit" ; stderr
+                                                 ,]})
+           ;; A writer to write on the server's stdin
+           writer (.-stdin server-process)
+           ;; A reader to read lines from the server's stdout
+           reader (.-stdout server-process)
+           
+           session (atom
+                    (client/create-session {:roots roots}))
+           
+           ctx {:session session
+                :send-message (fn [message]
+                                (prn [:--> message])
+                                (.write writer (str (-> message clj->js js/JSON.stringify) "\n")))
+                :close-connection (fn []
+                                    (.kill server-process))}]
+       
+       ;; Make the context available as a top level var, for REPL use.
+       (reset! context ctx)
+       
+       ;; Listen on the reader
+       (.on reader "data"
+            (fn [chunk]
+              ;; In this simple example, we naively assume that there is a json object per line.
+              (doseq [line (str/split-lines chunk)]
+                (when-some [message (try
+                                      (-> line
+                                          js/JSON.parse
+                                          (js->clj :keywordize-keys true))
+                                      (catch js/SyntaxError e
+                                        (json-rpc/send-message ctx json-rpc/parse-error-response)
+                                        (js/process.stderr.write (str "<<-" line "->>"))
+                                        nil))]
+                  (prn [:<-- message])
+                  (json-rpc/handle-message (assoc ctx :message message))))))
+
+       ;; Initiate the handshake
+       (client/send-first-handshake-message ctx))))
 
 ;;
 ;; Things to run in the REPL while the server is running
