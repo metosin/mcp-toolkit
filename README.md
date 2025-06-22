@@ -11,26 +11,35 @@ Tested on Claude Desktop and Claude Code, no problems found for the features imp
 
 ## Implemented features
 
+- [x] API for both clients & servers
 - [x] CLJC
   - [x] Clojure
   - [x] Clojurescript
   - [ ] Babashka
-- [x] Server API
-  - Stdio connection with an external MCP client
-  - Support for async tasks in prompts, resources and tools via Promesa
-  - Implemented MCP features (on the server)
-    - [x] Cancellation
-    - [x] Ping
-    - [x] Progress
-    - [x] Roots
-    - [x] Sampling
-    - [x] Prompts
-    - [x] Resources
-    - [x] Tools
-    - [x] Completion
-    - [x] Logging
-    - [ ] Pagination
-- [ ] Client API
+- I/O agnostic library
+- Uses Promesa to support async tasks in prompts, resources and tools
+- Compatible with protocol versions
+  - [x] `2024-11-05`
+  - [x] `2025-03-26`
+  - [ ] `2025-06-18` (not yet)
+- MCP features implemented
+  - [x] Cancellation
+  - [x] Ping
+  - [x] Progress
+  - [x] Roots
+  - [ ] Sampling
+  - [x] Prompts
+  - [x] Resources
+  - [x] Tools
+  - [x] Completion
+  - [x] Logging
+  - [ ] Pagination
+- Example projects
+  - [x] MCP client in CLJC
+  - [x] MCP server in CLJC
+  - [x] Stdio transport
+  - [ ] HTTP with SSE (PR welcome)
+  - [ ] Streamable HTTP transport (PR welcome)
 
 ## Usage
 
