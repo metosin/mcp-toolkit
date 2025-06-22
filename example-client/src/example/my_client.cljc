@@ -15,18 +15,22 @@
 
 ;; Example of usage of this library.
 
-(def roots [[{:uri "file:///home/user/projects/my-root"
-              :name "My project root"}]])
+(def session
+  (atom
+    (client/create-session {:client-capabilities {:roots    {:listChanged true}
+                                                  :sampling {}}
+                            :roots [[{:uri "file:///home/user/projects/my-root"
+                                      :name "My project root"}]]
+                            :on-sampling-requested (fn [context]
+                                                     (let [{:keys [session message]} context]
+                                                       {:role "assistant"
+                                                        :content {:type "text"
+                                                                  :text "You are absolutely right, and the answer is 42."}
+                                                        :model "The Hitchhiker's Guide to the Galaxy"
+                                                        :stopReason "endTurn"}))})))
 
-(defn on-sampling-requested [context]
-  (let [{:keys [session message]} context]
-    {:role "assistant"
-     :content {:type "text"
-               :text "You are absolutely right, and the answer is 42."}
-     :model "The Hitchhiker's Guide to the Galaxy"
-     :stopReason "endTurn"}))
-
-(def context (atom nil))
+(def context
+  (atom {:session session}))
 
 ;;
 ;; Platform-specific threading, transport & I/O stuffs
@@ -68,23 +72,17 @@
                       (InputStreamReader.)
                       (BufferedReader.)
                       (LineNumberingPushbackReader.))
-
-           session (atom
-                     (client/create-session {:roots roots
-                                             :on-sampling-requested on-sampling-requested}))
-
-           ctx {:session session
-                :send-message (let [json-mapper (j/object-mapper {:encode-key-fn name})]
-                                (fn [message]
-                                  (prn [:--> message])
-                                  (.write writer (j/write-value-as-string message json-mapper))
-                                  (.write writer "\n")
-                                  (.flush writer)))
-                :close-connection (fn []
-                                    (.close reader)
-                                    (.close writer))}]
-       ;; Make the context available as a top level var, for REPL use.
-       (reset! context ctx)
+           ;; Hook up the I/O functions to the context
+           ctx (swap! context assoc
+                      :send-message (let [json-mapper (j/object-mapper {:encode-key-fn name})]
+                                      (fn [message]
+                                        (prn [:--> message])
+                                        (.write writer (j/write-value-as-string message json-mapper))
+                                        (.write writer "\n")
+                                        (.flush writer)))
+                      :close-connection (fn []
+                                          (.close reader)
+                                          (.close writer)))]
 
        ;; Listen on the reader in a separate thread.
        (future (listen-messages ctx reader))
@@ -107,21 +105,14 @@
            writer (.-stdin server-process)
            ;; A reader to read lines from the server's stdout
            reader (.-stdout server-process)
-           
-           session (atom
-                    (client/create-session {:roots roots
-                                            :on-sampling-requested on-sampling-requested}))
-           
-           ctx {:session session
-                :send-message (fn [message]
-                                (prn [:--> message])
-                                (.write writer (str (-> message clj->js js/JSON.stringify) "\n")))
-                :close-connection (fn []
-                                    (.kill server-process))}]
-       
-       ;; Make the context available as a top level var, for REPL use.
-       (reset! context ctx)
-       
+           ;; Hook up the I/O functions to the context
+           ctx (swap! context assoc
+                      :send-message (fn [message]
+                                      (prn [:--> message])
+                                      (.write writer (str (-> message clj->js js/JSON.stringify) "\n")))
+                      :close-connection (fn []
+                                          (.kill server-process)))]
+
        ;; Listen on the reader
        (.on reader "data"
             (fn [chunk]
@@ -150,7 +141,7 @@
   (main)
   (-main)
 
-  (-> @context :session deref)
+  @session
 
   (json-rpc/close-connection @context)
 

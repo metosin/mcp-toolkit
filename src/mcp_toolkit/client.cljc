@@ -130,8 +130,7 @@
            on-server-tool-list-updated]
     :or   {client-info                     {:name    "mcp-toolkit"
                                             :version "0.0.1"}
-           client-capabilities             {:roots    {:listChanged true}
-                                            :sampling {}}
+           client-capabilities             {:roots    {:listChanged true}}
            protocol-version                "2025-03-26"
            on-initialized                  default-on-initialized
            on-server-prompt-list-changed   request-prompt-list
