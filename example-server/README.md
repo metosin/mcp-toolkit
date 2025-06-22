@@ -93,6 +93,6 @@ the button "Connect apps" in Claude Desktop's UI.
 
 ## License
 
-This project is distributed under the [Eclipse Public License v2.0](LICENSE.txt).
+This project is distributed under the [Eclipse Public License v2.0](../LICENSE.txt).
 
 Copyright (c) [Metosin](https://metosin.fi) and contributors.
