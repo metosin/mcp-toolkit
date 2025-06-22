@@ -2,12 +2,26 @@
 
 This project is here to get you started and demonstrates how to use the mcp-toolkit library.
 
-## Running on the JVM
+The client launches the JVM example-server when started and connects to it via its standard I/O.
 
-The client launches the JVM example server when started.
+## Running the client on the JVM
 
 ```shell
 clojure -M:mcp-client
+```
+
+## Running the client on NodeJS
+
+Launch a nREPL server:
+```shell
+npx shadow-cljs node-repl
+```
+
+or directly compile and run:
+```shell
+npm install
+npx shadow-cljs compile :node-client
+node out/node-client.js
 ```
 
 ### License

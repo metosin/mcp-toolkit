@@ -67,14 +67,15 @@ npx @modelcontextprotocol/inspector clojure -X:mcp-server
 
 ## Running the server on NodeJS
 
-Compile:
+Launch a nREPL server:
+```shell
+npx shadow-cljs node-repl
+```
+
+or directly compile and run:
 ```shell
 npm install
 npx shadow-cljs compile :node-server
-```
-
-Run:
-```shell
 node out/node-server.js
 ```
 

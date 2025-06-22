@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "npx shadow-cljs compile :node-client",
-    "repl": "npx shadow-cljs node-repl",
+    "repl-server": "npx shadow-cljs node-repl",
     "start": "node out/node-client.js"
   },
   "devDependencies": {

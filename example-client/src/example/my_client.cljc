@@ -12,8 +12,8 @@
 
 ;; Example of usage of this library.
 
-(def roots [[{:uri (str "file://" (-> (File. "my-root") (.getAbsolutePath)))
-              :name "My root"}]])
+(def roots [[{:uri "file:///home/user/projects/my-root"
+              :name "My project root"}]])
 
 (def context (atom nil))
 
@@ -44,7 +44,8 @@
 
 #?(:clj
    (defn -main [& args]
-     (let [^Process server-process (-> (ProcessBuilder. ["clojure" "-X:mcp-server"])
+     (let [;; Start a server
+           ^Process server-process (-> (ProcessBuilder. ["clojure" "-X:mcp-server"])
                                        (.directory (File. "../example-server"))
                                        (.start))
            ;; A writer to write on the server's stdin
