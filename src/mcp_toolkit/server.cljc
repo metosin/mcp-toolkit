@@ -61,20 +61,21 @@
 ;; Functions typically called by hand from a REPL session while working on MCP tooling
 ;;
 
-(defn notify-prompts-updated [context]
+(defn notify-prompt-list-changed
+  [context]
   (json-rpc/send-message context (json-rpc/notification "prompt/list_changed"))
   nil)
 
 (defn add-prompt [context prompt]
   (let [{:keys [session]} context]
     (swap! session update :prompt-by-name assoc (:name prompt) prompt)
-    (notify-prompts-updated context))
+    (notify-prompt-list-changed context))
   nil)
 
 (defn remove-prompt [context prompt]
   (let [{:keys [session]} context]
     (swap! session update :prompt-by-name dissoc (:name prompt))
-    (notify-prompts-updated context))
+    (notify-prompt-list-changed context))
   nil)
 
 (defn notify-resource-updated [context resource]
@@ -86,36 +87,38 @@
                                                             {:uri uri}))))
   nil)
 
-(defn notify-resources-updated [context]
+(defn notify-resource-list-changed
+  [context]
   (json-rpc/send-message context (json-rpc/notification "resources/list_changed"))
   nil)
 
 (defn add-resource [context resource]
   (let [{:keys [session]} context]
     (swap! session update :resource-by-uri assoc (:uri resource) resource)
-    (notify-resources-updated context))
+    (notify-resource-list-changed context))
   nil)
 
 (defn remove-resource [context resource]
   (let [{:keys [session]} context]
     (swap! session update :resource-by-uri dissoc (:uri resource))
-    (notify-resources-updated context))
+    (notify-resource-list-changed context))
   nil)
 
-(defn notify-tools-updated [context]
+(defn notify-tool-list-changed
+  [context]
   (json-rpc/send-message context (json-rpc/notification "tools/list_changed"))
   nil)
 
 (defn add-tool [context tool]
   (let [{:keys [session]} context]
     (swap! session update :tool-by-name assoc (:name tool) tool)
-    (notify-tools-updated context))
+    (notify-tool-list-changed context))
   nil)
 
 (defn remove-tool [context tool]
   (let [{:keys [session]} context]
     (swap! session update :tool-by-name dissoc (:name tool))
-    (notify-tools-updated context))
+    (notify-tool-list-changed context))
   nil)
 
 (defn set-resource-templates [context resource-templates]
