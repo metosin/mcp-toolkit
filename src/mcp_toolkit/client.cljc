@@ -219,8 +219,8 @@
   (json-rpc/send-message context (json-rpc/notification "cancelled"
                                                         {:requestId request-id})))
 
-(defn notify-root-list-updated
-  "Notifies the MCP server that the client's root list has been updated.
+(defn notify-root-list-changed
+  "Notifies the MCP server that the client's root list has been changed.
    (see https://modelcontextprotocol.io/specification/2025-06-18/client/roots#root-list-changes)
 
    Args:
@@ -230,6 +230,36 @@
      nil"
   [context]
   (json-rpc/send-message context (json-rpc/notification "roots/list_changed")))
+
+(defn add-root
+  "Adds a root to the client's root registry and notifies the server.
+
+   Args:
+     context - The client session context
+     root    - Root map with :uri key and other root configuration
+
+   Returns:
+     nil"
+  [context root]
+  (let [{:keys [session]} context]
+    (swap! session update :root-by-uri assoc (:uri root) root)
+    (notify-root-list-changed context))
+  nil)
+
+(defn remove-root
+  "Removes a root from the client's root registry and notifies the server.
+
+   Args:
+     context - The client session context
+     root    - Root map with :uri key to identify which root to remove
+
+   Returns:
+     nil"
+  [context root]
+  (let [{:keys [session]} context]
+    (swap! session update :root-by-uri dissoc (:uri root))
+    (notify-root-list-changed context))
+  nil)
 
 (defn send-first-handshake-message
   "Sends the initial handshake message to establish the MCP connection.
