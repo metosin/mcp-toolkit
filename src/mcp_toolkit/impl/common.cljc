@@ -1,4 +1,4 @@
-(ns mcp-toolkit.impl.common)
+(ns ^:no-doc mcp-toolkit.impl.common)
 
 (defn user-callback [callback-key]
   (fn [context]

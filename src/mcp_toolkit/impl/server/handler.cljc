@@ -1,4 +1,4 @@
-(ns mcp-toolkit.impl.server.handler
+(ns ^:no-doc mcp-toolkit.impl.server.handler
   (:require [mcp-toolkit.json-rpc :as json-rpc]
             [mcp-toolkit.impl.common :refer [user-callback]]
             [promesa.core :as p]))

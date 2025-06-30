@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <packaging>jar</packaging>
+  <groupId>fi.metosin</groupId>
+  <artifactId>mcp-toolkit</artifactId>
+  <version>0.0.1</version>
+  <name>MCP Toolkit</name>
+  <description>Utilities to build MCP clients and servers in Clojure</description>
+  <inceptionYear>2025</inceptionYear>
+  <licenses>
+    <license>
+      <name>EPL-2.0</name>
+      <url>https://opensource.org/license/EPL-2.0</url>
+    </license>
+  </licenses>
+  <scm>
+    <url>https://github.com/metosin/mcp-toolkit</url>
+    <connection>scm:git:git://github.com/metosin/mcp-toolkit.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/metosin/mcp-toolkit.git</developerConnection>
+    <tag>v0.0.1</tag>
+  </scm>
+  <dependencies>
+    <dependency>
+      <groupId>org.clojure</groupId>
+      <artifactId>clojure</artifactId>
+      <version>1.10.3</version>
+    </dependency>
+    <dependency>
+      <groupId>taipei.404</groupId>
+      <artifactId>mate</artifactId>
+      <version>0.0.9</version>
+    </dependency>
+    <dependency>
+      <groupId>funcool</groupId>
+      <artifactId>promesa</artifactId>
+      <version>11.0.678</version>
+    </dependency>
+    <dependency>
+      <groupId>metosin</groupId>
+      <artifactId>jsonista</artifactId>
+      <version>0.3.13</version>
+    </dependency>
+  </dependencies>
+  <build>
+    <sourceDirectory>src</sourceDirectory>
+  </build>
+  <repositories>
+    <repository>
+      <id>clojars</id>
+      <url>https://repo.clojars.org/</url>
+    </repository>
+  </repositories>
+</project>

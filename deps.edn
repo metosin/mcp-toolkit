@@ -22,4 +22,13 @@
            :nrepl {:extra-paths ["test"]
                    :extra-deps {nrepl/nrepl {:mvn/version "1.3.1"}}
                    :jvm-opts ["-Djdk.attach.allowAttachSelf"]
-                   :main-opts ["-m" "nrepl.cmdline" "--port" "7888"]}}}
+                   :main-opts ["-m" "nrepl.cmdline" "--port" "7888"]}
+
+           :jar  {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
+                  :exec-fn      hf.depstar/jar
+                  :exec-args    {:sync-pom    true
+                                 :group-id    "fi.metosin"
+                                 :artifact-id "mcp-toolkit"
+                                 :version     "0.0.1"
+                                 :jar         "mcp-toolkit.jar"}}}}
+
