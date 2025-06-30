@@ -9,7 +9,18 @@
 ;; Functions typically called from a prompt-fn or a tool-fn
 ;;
 
-(defn notify-progress [context progress]
+(defn notify-progress
+  "Notifies the client about progress during tool or prompt execution.
+   Only sends if the current message contains a progress token.
+   (see https://modelcontextprotocol.io/specification/2025-06-18/basic/utilities/progress#progress-flow)
+
+   Args:
+     context  - The server session context
+     progress - Map with progress information (e.g., {:progress 50 :total 100})
+
+   Returns:
+     nil"
+  [context progress]
   (let [{:keys [message]} context]
     (when-some [progress-token (-> message :params :_meta :progressToken)]
       (json-rpc/send-message context (json-rpc/notification "progress"
@@ -27,7 +38,19 @@
    "alert"     6
    "emergency" 7})
 
-(defn notify-log [context level logger data]
+(defn notify-log
+  "Sends a log message to the client if it meets the current logging level threshold.
+   (see https://modelcontextprotocol.io/specification/2025-06-18/server/utilities/logging#log-message-notifications)
+
+   Args:
+     context - The server session context
+     level   - Logging level, accepted values are \"debug\", \"info\", \"notice\", \"warning\", \"error\", \"critical\", \"alert\" and \"emergency\"
+     logger  - Logger name/identifier string
+     data    - Log message data (typically a string)
+
+   Returns:
+     nil"
+  [context level logger data]
   (let [{:keys [session]} context
         logging-level (:logging-level @session)]
     (when (>= (log-level->importance level -1) (log-level->importance logging-level))
@@ -37,7 +60,18 @@
                                                              :data   data}))))
   nil)
 
-(defn request-root-list [context]
+(defn request-root-list
+  "Requests the list of root directories from the MCP client.
+   Updates the session's client-root-by-uri index and calls the
+   on-client-root-list-updated callback.
+   (see https://modelcontextprotocol.io/specification/2025-06-18/client/roots#listing-roots)
+
+   Args:
+     context - The server session context
+
+   Returns:
+     A promise that resolves when roots are fetched and stored."
+  [context]
   (let [{:keys [session]} context
         {:keys [client-capabilities]} @session]
     (when (contains? client-capabilities :roots)
@@ -49,7 +83,16 @@
 
 ;; FIXME: implementation is not complete
 (defn request-sampling
-  "Returns a promise, either resolved with the result or rejected with the error."
+  "Requests message sampling from the MCP client.
+   Returns a promise, either resolved with the result or rejected with the error.
+   (see https://modelcontextprotocol.io/specification/2025-06-18/client/sampling#creating-messages)
+
+   Args:
+     context - The server session context
+     params  - Sampling parameters map
+
+   Returns:
+     A promise that resolves to the sampling result from the client."
   [context params]
   (let [{:keys [session]} context
         {:keys [client-capabilities]} @session]
@@ -62,23 +105,60 @@
 ;;
 
 (defn notify-prompt-list-changed
+  "Notifies the client that the server's prompt list has changed.
+   (see https://modelcontextprotocol.io/specification/2025-06-18/server/prompts#list-changed-notification)
+
+   Args:
+     context - The server session context
+
+   Returns:
+     nil"
   [context]
   (json-rpc/send-message context (json-rpc/notification "prompt/list_changed"))
   nil)
 
-(defn add-prompt [context prompt]
+(defn add-prompt
+  "Adds a prompt to the server's prompt registry and notifies the client.
+
+   Args:
+     context - The server session context
+     prompt  - Prompt map with :name key and other prompt configuration
+
+   Returns:
+     nil"
+  [context prompt]
   (let [{:keys [session]} context]
     (swap! session update :prompt-by-name assoc (:name prompt) prompt)
     (notify-prompt-list-changed context))
   nil)
 
-(defn remove-prompt [context prompt]
+(defn remove-prompt
+  "Removes a prompt from the server's prompt registry and notifies the client.
+
+   Args:
+     context - The server session context
+     prompt  - Prompt map with :name key to identify which prompt to remove
+
+   Returns:
+     nil"
+  [context prompt]
   (let [{:keys [session]} context]
     (swap! session update :prompt-by-name dissoc (:name prompt))
     (notify-prompt-list-changed context))
   nil)
 
-(defn notify-resource-updated [context resource]
+(defn notify-resource-updated
+  "Notifies subscribed clients about a specific resource update.
+   Only sends notification if the client is subscribed to the resource URI.
+   (see https://modelcontextprotocol.io/specification/2025-06-18/server/resources#subscriptions)
+
+   Args:
+     context  - The server session context
+     resource - Resource map with :uri key
+
+   Returns:
+     nil"
+  [context resource]
   (let [{:keys [session]} context
         {:keys [client-subscribed-resource-uris]} @session
         {:keys [uri]} resource]
@@ -88,45 +168,115 @@
   nil)
 
 (defn notify-resource-list-changed
+  "Notifies the client that the server's resource list has changed.
+   (see https://modelcontextprotocol.io/specification/2025-06-18/server/resources#list-changed-notification)
+
+   Args:
+     context - The server session context
+
+   Returns:
+     nil"
   [context]
   (json-rpc/send-message context (json-rpc/notification "resources/list_changed"))
   nil)
 
-(defn add-resource [context resource]
+(defn add-resource
+  "Adds a resource to the server's resource registry and notifies the client.
+
+   Args:
+     context  - The server session context
+     resource - Resource map with :uri key and other resource configuration
+
+   Returns:
+     nil"
+  [context resource]
   (let [{:keys [session]} context]
     (swap! session update :resource-by-uri assoc (:uri resource) resource)
     (notify-resource-list-changed context))
   nil)
 
-(defn remove-resource [context resource]
+(defn remove-resource
+  "Removes a resource from the server's resource registry and notifies the client.
+
+   Args:
+     context  - The server session context
+     resource - Resource map with :uri key to identify which resource to remove
+
+   Returns:
+     nil"
+  [context resource]
   (let [{:keys [session]} context]
     (swap! session update :resource-by-uri dissoc (:uri resource))
     (notify-resource-list-changed context))
   nil)
 
 (defn notify-tool-list-changed
+  "Notifies the client that the server's tool list has changed.
+  (see https://modelcontextprotocol.io/specification/2025-06-18/server/tools#list-changed-notification)
+
+   Args:
+     context - The server session context
+
+   Returns:
+     nil"
   [context]
   (json-rpc/send-message context (json-rpc/notification "tools/list_changed"))
   nil)
 
-(defn add-tool [context tool]
+(defn add-tool
+  "Adds a tool to the server's tool registry and notifies the client.
+
+   Args:
+     context - The server session context
+     tool    - Tool map with :name key and other tool configuration
+
+   Returns:
+     nil"
+  [context tool]
   (let [{:keys [session]} context]
     (swap! session update :tool-by-name assoc (:name tool) tool)
     (notify-tool-list-changed context))
   nil)
 
-(defn remove-tool [context tool]
+(defn remove-tool
+  "Removes a tool from the server's tool registry and notifies the client.
+
+   Args:
+     context - The server session context
+     tool    - Tool map with :name key to identify which tool to remove
+
+   Returns:
+     nil"
+  [context tool]
   (let [{:keys [session]} context]
     (swap! session update :tool-by-name dissoc (:name tool))
     (notify-tool-list-changed context))
   nil)
 
-(defn set-resource-templates [context resource-templates]
+(defn set-resource-templates
+  "Sets the resource templates for the server session.
+
+   Args:
+     context            - The server session context
+     resource-templates - Vector of resource template maps
+
+   Returns:
+     nil"
+  [context resource-templates]
   (let [{:keys [session]} context]
     (swap! session assoc :resource-templates resource-templates))
   nil)
 
-(defn set-resource-uri-complete-fn [context resource-uri-complete-fn]
+(defn set-resource-uri-complete-fn
+  "Sets the resource URI completion function for the server session.
+
+   Args:
+     context                   - The server session context
+     resource-uri-complete-fn  - Function to handle resource URI completion requests
+
+   Returns:
+     nil"
+  [context resource-uri-complete-fn]
   (let [{:keys [session]} context]
     (swap! session assoc :resource-uri-complete-fn resource-uri-complete-fn))
   nil)
