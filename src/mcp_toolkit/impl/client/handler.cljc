@@ -15,10 +15,10 @@
    "sampling/createMessage"               (user-callback :on-sampling-requested)
    "notifications/progress"               (user-callback :on-server-progress)
    "notifications/message"                (user-callback :on-server-log)
-   "notifications/prompts/list_changed"   (user-callback :on-server-prompt-list-updated)
-   "notifications/resources/updated"      (user-callback :on-server-resource-updated)
-   "notifications/resources/list_changed" (user-callback :on-server-resource-list-updated)
-   "notifications/tools/list_changed"     (user-callback :on-server-tool-list-updated)})
+   "notifications/prompts/list_changed"   (user-callback :on-server-prompt-list-changed)
+   "notifications/resources/updated"      (user-callback :on-server-resource-changed)
+   "notifications/resources/list_changed" (user-callback :on-server-resource-list-changed)
+   "notifications/tools/list_changed"     (user-callback :on-server-tool-list-changed)})
 
 (def handler-by-method-pre-initialization
   {"ping" ping-handler})

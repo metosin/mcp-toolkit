@@ -120,7 +120,7 @@
          :capabilities {:logging     {}
                         :completions {}
                         :prompts     {:listChanged true}
-                        :resources   {:subscribe true
+                        :resources   {:subscribe   true
                                       :listChanged true}
                         :tools       {:listChanged true}}
          :serverInfo server-info}

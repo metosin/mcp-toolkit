@@ -66,13 +66,12 @@
 
 (defn request-tool-list [context]
   (let [{:keys [session]} context
-        {:keys [server-capabilities on-server-tools-updated]} @session]
+        {:keys [server-capabilities]} @session]
     (when (contains? server-capabilities :prompts)
       (-> (json-rpc/call-remote-method context {:method "tools/list"})
           (p/then (fn [{:keys [tools] :as result}]
                     (swap! session assoc :server-tool-by-name (mc/index-by :name tools))
-                    (when (some? on-server-tools-updated)
-                      (on-server-tools-updated context))))))))
+                    ((user-callback :on-server-tool-list-updated) context)))))))
 
 (defn request-tool-invocation [context tool-name arguments]
   (json-rpc/call-remote-method context {:method "tools/call"
@@ -130,7 +129,7 @@
            on-server-tool-list-updated]
     :or   {client-info                     {:name    "mcp-toolkit"
                                             :version "0.0.1"}
-           client-capabilities             {:roots    {:listChanged true}}
+           client-capabilities             {:roots {:listChanged true}}
            protocol-version                "2025-03-26"
            on-initialized                  default-on-initialized
            on-server-prompt-list-changed   request-prompt-list
