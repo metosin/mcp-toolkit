@@ -302,7 +302,7 @@
            on-client-root-list-updated ;; called after the server updated its data
            ,]
     :or   {server-info                 {:name    "mcp-toolkit"
-                                        :version "0.0.1"}
+                                        :version "0.1.0-alpha"}
            logging-level               "info"
            on-initialized              request-root-list
            on-client-root-list-changed request-root-list}}]

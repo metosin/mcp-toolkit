@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  release:
+    types:
+      - published # reacts to releases and pre-releases, but not their drafts
+
+jobs:
+
+  test-and-release:
+
+    name: Validate, Jar and Deploy
+
+    timeout-minutes: 60
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/hydrogen
+
+      - name: Setup Clojure
+        uses: DeLaGuardo/setup-clojure@master
+        with:
+          cli: latest
+
+      - name: Install dependencies for unit tests
+        run: npm ci
+
+      - name: Unit tests
+        run: ./bin/kaocha
+
+      - name: Build the jar and update pom.xml's version
+        run: clojure -X:jar
+
+      - name: Deploy the jar and pom files to Clojars
+        run: clojure -X:deploy
+        env:
+          CLOJARS_USERNAME: green-coder
+          CLOJARS_PASSWORD: "${{ secrets.CLOJARS_DEPLOY_TOKEN }}"

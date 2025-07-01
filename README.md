@@ -9,7 +9,7 @@ This library is a very unofficial MCP SDK in Clojure.
 It handles the communication between MCP clients and MCP servers, and attempts to provide
 a Clojure-ish experience to developers working on expending the MCP ecosystem.
 
-Status: **"work in progress"**
+Status: **alpha quality**
 
 Tested on Claude Desktop and Claude Code, no problems found for the features implemented.
 

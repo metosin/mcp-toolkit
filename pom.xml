@@ -4,7 +4,7 @@
   <packaging>jar</packaging>
   <groupId>fi.metosin</groupId>
   <artifactId>mcp-toolkit</artifactId>
-  <version>0.0.1</version>
+  <version>0.1.0-alpha</version>
   <name>MCP Toolkit</name>
   <description>Utilities to build MCP clients and servers in Clojure</description>
   <inceptionYear>2025</inceptionYear>
@@ -18,7 +18,7 @@
     <url>https://github.com/metosin/mcp-toolkit</url>
     <connection>scm:git:git://github.com/metosin/mcp-toolkit.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/metosin/mcp-toolkit.git</developerConnection>
-    <tag>v0.0.1</tag>
+    <tag>v0.1.0-alpha</tag>
   </scm>
   <dependencies>
     <dependency>
