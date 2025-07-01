@@ -164,26 +164,31 @@
 ;; (tel/remove-handler! ::file )
 
 ;; in a real application you would probably use something like integrant, component, mount, etc.
-(defn ctx-start [opts]
+
+(defonce system (atom nil))
+
+(defn start [opts]
   (-> default-transport-env
       (sse/ctx-start)
       (start-http opts)))
 
-(defn ctx-stop [ctx]
-  (-> ctx
+(defn stop []
+  (-> @system
       (stop-http)))
 
-(defonce _ctx (atom nil))
-
-(defn restart []
-  (ctx-stop @_ctx)
-  (reset! _ctx (ctx-start {:host "127.0.0.1" :port 3000})))
+(defn restart [opts]
+  (stop)
+  (reset! system (start opts)))
 
 (defn main [opts]
-  (ctx-start opts))
+  (start opts))
 
 (comment
-  (restart) ;; rcf
-  (clojure.repl.deps/sync-deps)
+  ;; From a repl you can run the system  with
+  (start {:host "127.0.0.1" :port 3000})
+  ;; and stop it with
+  (stop)
+  ;; or do both at once
+  (restart {:host "127.0.0.1" :port 3000})
   ;;
   )
