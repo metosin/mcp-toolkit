@@ -112,8 +112,7 @@
                            :resource-templates       my-resource-templates
                            :resource-uri-complete-fn my-resource-uri-complete-fn})))
 
-(def context
-  "This the the http server context, not the mcp-toolkit context."
+(def default-transport-env
   {:dev?              true
    :create-session-fn create-session
    :settings          {:allowed-hosts ["127.0.0.1:*"]}})
@@ -166,7 +165,7 @@
 
 ;; in a real application you would probably use something like integrant, component, mount, etc.
 (defn ctx-start [opts]
-  (-> context
+  (-> default-transport-env
       (sse/ctx-start)
       (start-http opts)))
 
