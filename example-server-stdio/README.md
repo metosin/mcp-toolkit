@@ -13,7 +13,7 @@ Configuration example for file located at
 ```json
 {
   "mcpServers": {
-    "example-mcp-server": {
+    "toolkit": {
       "command": "/bin/sh",
       "args": [
         "-c",
@@ -46,7 +46,7 @@ In `claude_desktop_config.json`, change the config to:
 ```json
 {
   "mcpServers": {
-    "example-mcp-server": {
+    "toolkit": {
       "command": "/bin/sh",
       "args": [
         "-c",

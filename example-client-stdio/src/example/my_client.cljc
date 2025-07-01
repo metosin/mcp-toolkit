@@ -61,7 +61,7 @@
    (defn -main [& args]
      (let [;; Start a server process
            ^Process server-process (-> (ProcessBuilder. ["clojure" "-X:mcp-server"])
-                                       (.directory (File. "../example-server"))
+                                       (.directory (File. "../example-server-stdio"))
                                        (.start))
            ;; A writer to write on the server's stdin
            writer (-> (.getOutputStream server-process)
@@ -96,7 +96,7 @@
    (defn main [& args]
      (let [;; Start a server process
            server-process (spawn "clojure" #js ["-X:mcp-server"]
-                                #js {:cwd (.resolve path ".." "example-server")
+                                #js {:cwd (.resolve path ".." "example-server-stdio")
                                      :stdio #js ["pipe"    ; writable stdin
                                                  "pipe"    ; writable stdout
                                                  "inherit" ; stderr

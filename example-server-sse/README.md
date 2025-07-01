@@ -59,4 +59,4 @@ Let us know if it changes.
 This project is distributed under the [Eclipse Public License v2.0](../LICENSE.txt).
 
 Copyright © 2025 [Casey Link](https://casey.link)
-Copyright © 2025 [Metosin](https://metosin.fi)
+Copyright © 2025 [Metosin](https://metosin.fi) and contributors.

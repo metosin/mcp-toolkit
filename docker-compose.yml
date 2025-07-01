@@ -3,6 +3,6 @@ services:
     build: .
     volumes:
       - .:/app
-    working_dir: /app/example-server
+    working_dir: /app/example-server-stdio
     ports:
       - "7925:7925"
