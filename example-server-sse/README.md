@@ -25,7 +25,7 @@ authorization.
 
 ## Usage
 
-Start the mcp server with:
+Start the MCP server with:
 
 ``` shell
 clojure -X:mcp-server
@@ -33,15 +33,26 @@ clojure -X:mcp-server
 
 ### MCP Inspector 
 
-1. Choose Transport type: `SSE`
-2. Paste the URL: `http://127.0.0.1:7925/sse`
-3. Press Connect
+1. Make sure that the MCP server is running (see previous section).
+2. Run the MCP inspector: `npx @modelcontextprotocol/inspector`.
+3. A link to the MCP inspector with the query param `MCP_PROXY_AUTH_TOKEN` is shown, open it in a browser.
+4. In the UI, set the "Transport Type to the `SSE` list item and the URL to `http://127.0.0.1:7925/sse`.
+5. Press the "Connect" button.
 
 ### Claude Code
 
+Add the server's connection settings to Claude's configuration:
+
 ``` shell
-claude mcp add example-mcp --transport sse http://127.0.0.1:7925/sse
+claude mcp add toolkit-sse --transport sse http://127.0.0.1:7925/sse
 ```
+
+Then, make sure that your MCP server runs before Claude Code is started.
+
+### Claude Desktop
+
+At the time of writing this, Claude Desktop doesn't support directly connecting to MCP servers via SSE.
+Let us know if it changes.
 
 ## License
 
