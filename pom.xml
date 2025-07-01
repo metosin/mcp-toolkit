@@ -6,7 +6,7 @@
   <artifactId>mcp-toolkit</artifactId>
   <version>0.1.0-alpha</version>
   <name>MCP Toolkit</name>
-  <description>Utilities to build MCP clients and servers in Clojure</description>
+  <description>a lib to build MCP clients and MCP servers in Clojure(script)</description>
   <inceptionYear>2025</inceptionYear>
   <licenses>
     <license>

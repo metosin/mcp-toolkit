@@ -1,7 +1,7 @@
 # MCP Toolkit
 
 [![Clojars Project](https://img.shields.io/clojars/v/fi.metosin/mcp-toolkit.svg)](https://clojars.org/fi.metosin/mcp-toolkit)
-[![Slack](https://img.shields.io/badge/slack-mcp-toolkit-orange.svg?logo=slack)](https://clojurians.slack.com/app_redirect?channel=mcp-toolkit)
+[![Slack](https://img.shields.io/badge/slack-mcp--toolkit-orange.svg?logo=slack)](https://clojurians.slack.com/app_redirect?channel=mcp-toolkit)
 [![cljdoc badge](https://cljdoc.org/badge/fi.metosin/mcp-toolkit)](https://cljdoc.org/d/fi.metosin/mcp-toolkit)
 
 This library is a very unofficial MCP SDK in Clojure.
