@@ -1,7 +1,7 @@
 ## The context hashmap
 
 The context hashmap contains:
-- The session atom
+- The `:session` atom
 - Some I/O related functions which are use-case specific and that the user has to provide.
 - The `:send-message` function 
 - The `:close-connection` function

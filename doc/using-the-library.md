@@ -1,6 +1,6 @@
 ## How to use the library
 
-The process is best described in the `example-server` and `example-client` projects
+The process is best described in the `example-server-stdio` and `example-client-stdio` projects
 which are well commented.
 
 It boils down to this:

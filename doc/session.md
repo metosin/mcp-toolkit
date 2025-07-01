@@ -1,6 +1,6 @@
 ## The session atom
 
-A session is typically created using the function `mcp-toolkit.client/create-session` or `mcp-toolkit.client/create-session`.
+A session is typically created using the function `mcp-toolkit.client/create-session` or `mcp-toolkit.server/create-session`.
 
 It contains:
 - The `:initialized` boolean, becomes true after the initial handshake between the client and server.
