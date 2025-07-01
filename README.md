@@ -38,7 +38,7 @@ Tested on Claude Desktop and Claude Code, no problems found for the features imp
   - [x] MCP client in CLJC
   - [x] MCP server in CLJC
   - [x] Stdio transport
-  - [ ] HTTP with SSE (PR welcome)
+  - [x] HTTP with SSE
   - [ ] Streamable HTTP transport (PR welcome)
 
 ## Usage
