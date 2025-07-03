@@ -108,7 +108,7 @@
         (let [response-handler (fn [{:keys [session message]}]
                                  (swap! session update :handler-by-called-method-id dissoc called-method-id)
                                  (if (contains? message :error)
-                                   (reject (:error message))
+                                   (reject (ex-info "error" (:error message)))
                                    (resolve (:result message))))]
           (swap! session update :handler-by-called-method-id assoc called-method-id response-handler)
           (send-message (-> message
