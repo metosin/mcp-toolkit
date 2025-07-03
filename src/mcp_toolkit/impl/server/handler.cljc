@@ -13,15 +13,14 @@
 
 (defn completion-complete-handler [{:keys [session message] :as context}]
   (let [{:keys [ref argument]} (:params message)]
-    (case (:type ref)
-      "ref/prompt" (if-some [complete-fn (-> @session :prompt-by-name (get (:name ref)) :complete-fn)]
-                     (complete-fn context (:name argument) (:value argument))
-                     (json-rpc/method-not-found-response (:id message)))
-      "ref/resource" (-> (when-some [resource-uri-complete-fn (:resource-uri-complete-fn @session)]
-                           (resource-uri-complete-fn context (:uri ref) (:name argument) (:value argument)))
-                         (or {:completion {:values []
-                                           :total 0
-                                           :hasMore false}})))))
+    (-> (case (:type ref)
+          "ref/prompt" (when-some [prompt-param-complete-fn (-> @session :prompt-by-name (get (:name ref)) :complete-fn)]
+                         (prompt-param-complete-fn context (:name argument) (:value argument)))
+          "ref/resource" (when-some [resource-uri-complete-fn (:resource-uri-complete-fn @session)]
+                           (resource-uri-complete-fn context (:uri ref) (:name argument) (:value argument))))
+        (or {:completion {:values []
+                          :total 0
+                          :hasMore false}}))))
 
 (defn prompt-list-handler [{:keys [session]}]
   {:prompts (-> @session :prompt-by-name vals
