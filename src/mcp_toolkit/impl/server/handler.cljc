@@ -17,9 +17,11 @@
       "ref/prompt" (if-some [complete-fn (-> @session :prompt-by-name (get (:name ref)) :complete-fn)]
                      (complete-fn context (:name argument) (:value argument))
                      (json-rpc/method-not-found-response (:id message)))
-      "ref/resource" (if-some [complete-fn (:resource-uri-complete-fn @session)]
-                       (complete-fn context (:uri ref) (:name argument) (:value argument))
-                       (json-rpc/method-not-found-response (:id message))))))
+      "ref/resource" (-> (when-some [resource-uri-complete-fn (:resource-uri-complete-fn @session)]
+                           (resource-uri-complete-fn context (:uri ref) (:name argument) (:value argument)))
+                         (or {:completion {:values []
+                                           :total 0
+                                           :hasMore false}})))))
 
 (defn prompt-list-handler [{:keys [session]}]
   {:prompts (-> @session :prompt-by-name vals
