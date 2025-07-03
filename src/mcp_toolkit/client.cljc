@@ -315,7 +315,7 @@
            on-server-tool-list-changed
            on-server-tool-list-updated]
     :or   {client-info                     {:name    "mcp-toolkit"
-                                            :version "0.1.0-alpha"}
+                                            :version "0.1.1-alpha"}
            client-capabilities             {:roots {:listChanged true}}
            protocol-version                "2025-03-26"
            on-initialized                  default-on-initialized

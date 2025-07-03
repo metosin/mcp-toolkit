@@ -39,5 +39,5 @@ jobs:
       - name: Deploy the jar and pom files to Clojars
         run: clojure -X:deploy
         env:
-          CLOJARS_USERNAME: green-coder
+          CLOJARS_USERNAME: metosinci
           CLOJARS_PASSWORD: "${{ secrets.CLOJARS_DEPLOY_TOKEN }}"
