@@ -36,24 +36,32 @@
                                                   (filter some?)
                                                   (str/join " "))}}]})})
 
-(def hello-world-resource
+(def hello-doc-resource
   {:uri "file:///doc/hello.md"
    :name "hello.md"
-   :description "Documentation's intro"
+   :description "First part of the \"hello world\" resources"
    :mimeType "text/markdown; charset=UTF-8"
    ;;:blob ,,,
-   :text "Hello, `world!`"})
+   :text "Hello"})
+
+(def world-doc-resource
+  {:uri "file:///doc/world.md"
+   :name "world.md"
+   :description "Second part of the \"hello world\" resources"
+   :mimeType "text/markdown; charset=UTF-8"
+   ;;:blob ,,,
+   :text "world!"})
 
 (def my-resource-templates
-  [{:uriTemplate "file:///my-root-dir/{path}"
-    :name "Project files"
-    :description "Access files in the project directory"
-    :mimeType "application/octet-stream"}])
+  [{:uriTemplate "file:///doc/{path}"
+    :name "Documentation files"
+    :description "The documentation files"
+    :mimeType "text/markdown; charset=UTF-8"}])
 
 (defn my-resource-uri-complete-fn [context uri name value]
-  (when (and (= uri "file:///my-root-dir/{path}")
+  (when (and (= uri "file:///doc/{path}")
              (= name "path"))
-    (let [paths ["about" "alpha" "beta"]
+    (let [paths ["hello.md" "world.md"]
           values (filterv (fn [path] (str/starts-with? path value)) paths)]
       {:completion {:values (take 100 values)
                     :total (count values)
@@ -95,7 +103,8 @@
 (def session
   (atom
     (server/create-session {:prompts [talk-like-pirate-prompt]
-                            :resources [hello-world-resource]
+                            :resources [hello-doc-resource
+                                        world-doc-resource]
                             :tools [parentify-tool]
                             :resource-templates my-resource-templates
                             :resource-uri-complete-fn my-resource-uri-complete-fn})))
