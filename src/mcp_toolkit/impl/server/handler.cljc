@@ -49,7 +49,7 @@
       (json-rpc/resource-not-found (:id message) uri))))
 
 (defn resource-templates-list-handler [{:keys [session]}]
-  {:resourceTemplates (-> @session (:resource-templates []))})
+  {:resourceTemplates (-> @session :resource-templates (or []))})
 
 (defn resource-subscribe-handler [{:keys [session message]}]
   (let [{:keys [uri]} (:params message)]
