@@ -53,8 +53,7 @@
                                    (send-message json-rpc/parse-error-response)
                                    nil))]
              (prn [:<-- message])
-             (json-rpc/handle-message (-> context
-                                          (assoc :message message))))
+             (json-rpc/handle-message context message))
            (recur))))))
 
 #?(:clj
@@ -127,7 +126,7 @@
                                         (js/process.stderr.write (str "<<-" line "->>"))
                                         nil))]
                   (prn [:<-- message])
-                  (json-rpc/handle-message (assoc ctx :message message))))))
+                  (json-rpc/handle-message ctx message)))))
 
        ;; Initiate the handshake
        (client/send-first-handshake-message ctx))))

@@ -141,12 +141,11 @@
     (send! "message" (->json message))))
 
 (defn handle-message-response [session message]
-  (let [mcp-context {:message      message
-                     :send-message (make-send-message session)
+  (let [mcp-context {:send-message (make-send-message session)
                      :session      (:session/data session)}]
 
     (tel/log! {:level :debug :id :sse/accepted-message :data {:message message}})
-    (json-rpc/handle-message mcp-context))
+    (json-rpc/handle-message mcp-context message))
   {:status  202
    :headers {"content-type" "text/plain"}
    :body    "Accepted"})

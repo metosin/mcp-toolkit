@@ -188,12 +188,13 @@
    Routes messages to appropriate handlers and manages responses.
 
    Args:
-     context - The session context containing message, session, and send-message
+     context - The context, containing session and send-message
+     message - The message to handle
 
    Returns:
      A promise that resolves when message handling is complete."
-  [context]
-  (let [{:keys [message send-message]} context]
+  [context message]
+  (let [{:keys [send-message]} context]
     (if (vector? message)
       ;; It is a batch message, if we respond it should be a batch response
       (let [batch-response (->> message
@@ -205,7 +206,7 @@
                         (when (seq batch-response)
                           (send-message batch-response)))))))
       ;; It is a single message
-      (-> (route-message context)
+      (-> (route-message (assoc context :message message))
           (p/then (fn [response]
                     (when (some? response)
                       (send-message response))))))))

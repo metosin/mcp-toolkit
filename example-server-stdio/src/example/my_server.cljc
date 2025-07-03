@@ -142,8 +142,7 @@
              (if (nil? message)
                (recur)
                (do
-                 (json-rpc/handle-message (-> context
-                                              (assoc :message message)))
+                 (json-rpc/handle-message context message)
                  (recur)))))))))
 
 #?(:clj
@@ -186,7 +185,7 @@
                                                       (json-rpc/send-message context json-rpc/parse-error-response)
                                                       (js/process.stderr.write (str "<<-" line "->>"))
                                                       nil))]
-                                (json-rpc/handle-message (assoc context :message message))))))
+                                (json-rpc/handle-message context message)))))
      (js/process.stdin.on "end"
                           (fn []
                             (js/process.exit 0)))))

@@ -60,8 +60,7 @@
                                     (p/let [message (sp/take input-channel)]
                                       (when (some? message) ; A nil message means that the channel was closed.
                                         (p/do
-                                          (json-rpc/handle-message (-> context
-                                                                       (assoc :message message)))
+                                          (json-rpc/handle-message context message)
                                           (p/recur))))))]
     ;; A promise for each site, to run a message processing loop.
     (message-processing-loop client-context server-output)
