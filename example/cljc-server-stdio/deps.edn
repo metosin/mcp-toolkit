@@ -4,7 +4,8 @@
         org.clojure/clojurescript      {:mvn/version "1.12.42"}
         thheller/shadow-cljs           {:mvn/version "3.1.7"}
         nrepl/nrepl                    {:mvn/version "1.3.1"}
-        fi.metosin/mcp-toolkit         {:local/root ".."}
+        metosin/jsonista               {:mvn/version "0.3.13"}
+        fi.metosin/mcp-toolkit         {:local/root "../.."}
         ,}
 
  :aliases {;; clojure -X:mcp-server

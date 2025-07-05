@@ -3,7 +3,8 @@
  :deps {org.clojure/clojure            {:mvn/version "1.12.1"}
         org.clojure/clojurescript      {:mvn/version "1.12.42"}
         thheller/shadow-cljs           {:mvn/version "3.1.7"}
-        fi.metosin/mcp-toolkit         {:local/root ".."}
+        metosin/jsonista               {:mvn/version "0.3.13"}
+        fi.metosin/mcp-toolkit         {:local/root "../.."}
         ,}
 
  :aliases {;; clojure -M:mcp-client

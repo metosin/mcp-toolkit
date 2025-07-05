@@ -1,7 +1,6 @@
 (ns mcp-toolkit.test.util
   (:require [clojure.test :refer [deftest testing is are]]
-            [promesa.core :as p]
-            [promesa.exec.csp :as sp]))
+            [promesa.core :as p]))
 
 (defn- assertion-error [message]
   #?(:clj (new AssertionError (str "Assert failed: " message))

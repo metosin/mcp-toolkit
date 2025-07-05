@@ -4,10 +4,11 @@
         nrepl/nrepl            {:mvn/version "1.3.1"}
         http-kit/http-kit      {:mvn/version "2.9.0-alpha6"}
         com.taoensso/telemere  {:mvn/version "1.0.1"}
+        metosin/jsonista       {:mvn/version "0.3.13"}
         metosin/reitit-ring    {:mvn/version "0.9.1"}
         metosin/reitit-core    {:mvn/version "0.9.1"}
         medley/medley          {:mvn/version "1.4.0"}
-        fi.metosin/mcp-toolkit {:local/root ".."}}
+        fi.metosin/mcp-toolkit {:local/root "../.."}}
 
  :aliases {:dev        {:extra-deps  {}
                         :extra-paths ["dev"]
