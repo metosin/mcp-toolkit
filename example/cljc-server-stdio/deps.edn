@@ -6,6 +6,7 @@
         nrepl/nrepl                    {:mvn/version "1.3.1"}
         metosin/jsonista               {:mvn/version "0.3.13"}
         fi.metosin/mcp-toolkit         {:local/root "../.."}
+        example/common-mcp-content     {:local/root "../common-mcp-content"}
         ,}
 
  :aliases {;; clojure -X:mcp-server

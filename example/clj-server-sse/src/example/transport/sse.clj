@@ -1,5 +1,5 @@
 (ns example.transport.sse
-  "This namespaces provides a 2024-11-05 compatible SSE transport for MCP Toolkit."
+  "This namespace provides a 2024-11-05 compatible SSE transport for MCP Toolkit."
   (:require
    [clojure.string :as str]
    [jsonista.core :as j]

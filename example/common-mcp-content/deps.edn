@@ -1,0 +1,10 @@
+{:paths ["src"]
+
+ :deps {fi.metosin/mcp-toolkit {:local/root "../.."}}
+
+ :aliases {:dev {:extra-deps {org.clojure/clojure       {:mvn/version "1.12.1"}
+                              org.clojure/clojurescript {:mvn/version "1.12.42"}}}
+
+           ;; clojure -M:outdated --upgrade
+           :outdated {:extra-deps {com.github.liquidz/antq {:mvn/version "2.11.1276"}}
+                      :main-opts  ["-m" "antq.core"]}}}

@@ -3,6 +3,7 @@
             [mcp-toolkit.client :as client]
             [mcp-toolkit.json-rpc :as json-rpc]
             [promesa.core :as p]
+            [example.client-content :as content]
             #?(:clj [jsonista.core :as j])
             #?(:cljs ["child_process" :refer [spawn]])
             #?(:cljs ["path" :as path]))
@@ -19,15 +20,8 @@
   (atom
     (client/create-session {:client-capabilities {:roots    {:listChanged true}
                                                   :sampling {}}
-                            :roots [[{:uri "file:///home/user/projects/my-root"
-                                      :name "My project root"}]]
-                            :on-sampling-requested (fn [context]
-                                                     (let [{:keys [session message]} context]
-                                                       {:role "assistant"
-                                                        :content {:type "text"
-                                                                  :text "You are absolutely right, and the answer is 42."}
-                                                        :model "The Hitchhiker's Guide to the Galaxy"
-                                                        :stopReason "endTurn"}))})))
+                            :roots content/roots
+                            :on-sampling-requested content/sampling-handler})))
 
 (def context
   (atom {:session session}))
