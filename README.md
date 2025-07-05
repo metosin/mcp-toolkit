@@ -38,15 +38,15 @@ Tested on Claude Desktop and Claude Code, no problems found for the features imp
   - [x] Completion
   - [x] Logging
   - [ ] Pagination
-- Example projects
-  - [x] [MCP server in CLJC](example-server-stdio), uses STDIO transport
-  - [x] [MCP client in CLJC](example-client-stdio), connects to the server above using STDIO transport
-  - [x] [MCP server in CLJ](example-server-sse), uses HTTP with SSE transport
-  - [ ] [MCP server in CLJ], uses Streamable HTTP transport (PR welcome)
+- [Example projects](example)
+  - [x] [CLJC server using STDIO](example/cljc-server-stdio)
+  - [x] [CLJC client using STDIO](example/cljc-client-stdio)
+  - [x] [CLJ server using HTTP/SSE](example/clj-server-sse)
+  - [ ] CLJ server using Streamable HTTP (PR welcome)
 
 ## Usage
 
-See the `README.md` in the `example-server-stdio/` project to learn:
+See the `README.md` in the `example/cljc-server-stdio/` project to learn:
 - how to use this library to make your own MCP server in Clojure, and
 - how to develop its components (prompts, resources and tools) via the REPL
 while the server is running.
