@@ -12,12 +12,23 @@
   {})
 
 (defn completion-complete-handler [{:keys [session message] :as context}]
-  (let [{:keys [ref argument]} (:params message)]
+  (let [{:keys [ref argument context]} (:params message)] ;; Added context from params (2025-06-18)
     (-> (case (:type ref)
           "ref/prompt" (when-some [prompt-param-complete-fn (-> @session :prompt-by-name (get (:name ref)) :complete-fn)]
-                         (prompt-param-complete-fn context (:name argument) (:value argument)))
+                         ;; Pass context if provided (2025-06-18 spec)
+                         (if context
+                           (prompt-param-complete-fn (assoc context :completion-context context)
+                                                     (:name argument)
+                                                     (:value argument))
+                           (prompt-param-complete-fn context (:name argument) (:value argument))))
           "ref/resource" (when-some [resource-uri-complete-fn (:resource-uri-complete-fn @session)]
-                           (resource-uri-complete-fn context (:uri ref) (:name argument) (:value argument))))
+                           ;; Pass context if provided (2025-06-18 spec)
+                           (if context
+                             (resource-uri-complete-fn (assoc context :completion-context context)
+                                                       (:uri ref)
+                                                       (:name argument)
+                                                       (:value argument))
+                             (resource-uri-complete-fn context (:uri ref) (:name argument) (:value argument)))))
         (or {:completion {:values []
                           :total 0
                           :hasMore false}}))))
@@ -25,9 +36,8 @@
 (defn prompt-list-handler [{:keys [session]}]
   {:prompts (-> @session :prompt-by-name vals
                 (->> (mapv (fn [prompt]
-                             (select-keys prompt [:name :description :arguments])))))
-   #_#_
-   :nextCursor "next-page-cursor"})
+                             (select-keys prompt [:name :title :description :arguments])))))
+   #_#_:nextCursor "next-page-cursor"})
 
 (defn prompt-get-handler [{:keys [session message] :as context}]
   (let [{:keys [name arguments]} (:params message)]
@@ -38,9 +48,8 @@
 (defn resource-list-handler [{:keys [session]}]
   {:resources (-> @session :resource-by-uri vals
                   (->> (mapv (fn [resource]
-                               (select-keys resource [:uri :name :description :mimeType])))))
-   #_#_
-   :nextCursor "next-page-cursor"})
+                               (select-keys resource [:uri :name :title :description :mimeType])))))
+   #_#_:nextCursor "next-page-cursor"})
 
 (defn resource-read-handler [{:keys [session message]}]
   (let [{:keys [uri]} (:params message)]
@@ -65,18 +74,35 @@
 (defn tool-list-handler [{:keys [session]}]
   {:tools (-> @session :tool-by-name vals
               (->> (mapv (fn [tool]
-                           (select-keys tool [:name :description :inputSchema])))))
-   #_#_
-   :nextCursor "next-page-cursor"})
+                           (cond-> (select-keys tool [:name :title :description :inputSchema])
+                             ;; Add outputSchema if present (2025-06-18 spec)
+                             (:outputSchema tool) (assoc :outputSchema (:outputSchema tool)))))))
+   #_#_:nextCursor "next-page-cursor"})
 
 (defn tool-call-handler [{:keys [session message] :as context}]
   (let [{:keys [name arguments]} (:params message)]
-    (if-some [tool-fn (-> @session :tool-by-name (get name) :tool-fn)]
-      (-> (tool-fn context arguments)
-          (p/catch (fn [exception]
-                     {:content [{:type "text"
-                                 :text (ex-message exception)}]
-                      :isError true})))
+    (if-some [tool (-> @session :tool-by-name (get name))]
+      (let [tool-fn (:tool-fn tool)]
+        (-> (tool-fn context arguments)
+            (p/then (fn [result]
+                      ;; Support both simple and structured responses (2025-06-18 spec)
+                      (cond
+                        ;; If result already has content/resources structure, use as-is
+                        (and (map? result)
+                             (or (contains? result :content)
+                                 (contains? result :resources)))
+                        result
+
+                        ;; Legacy simple response - wrap in content
+                        :else
+                        {:content [{:type "text"
+                                    :text (if (string? result)
+                                            result
+                                            (pr-str result))}]})))
+            (p/catch (fn [exception]
+                       {:content [{:type "text"
+                                   :text (ex-message exception)}]
+                        :isError true}))))
       ;; FIXME: this is wrong because it will be interpreted as result data
       (json-rpc/invalid-tool-name (:id message) name))))
 
@@ -85,28 +111,27 @@
     (reset! is-cancelled-atom true)))
 
 (def handler-by-method-post-initialization
-  {"ping"                             ping-handler
-   "logging/setLevel"                 set-logging-level-handler
-   "completion/complete"              completion-complete-handler
-   "prompts/list"                     prompt-list-handler
-   "prompts/get"                      prompt-get-handler
-   "resources/list"                   resource-list-handler
-   "resources/read"                   resource-read-handler
-   "resources/templates/list"         resource-templates-list-handler
-   "resources/subscribe"              resource-subscribe-handler
-   "resources/unsubscribe"            resource-unsubscribe-handler
-   "tools/list"                       tool-list-handler
-   "tools/call"                       tool-call-handler
-   "notifications/cancelled"          cancelled-notification-handler
+  {"ping" ping-handler
+   "logging/setLevel" set-logging-level-handler
+   "completion/complete" completion-complete-handler
+   "prompts/list" prompt-list-handler
+   "prompts/get" prompt-get-handler
+   "resources/list" resource-list-handler
+   "resources/read" resource-read-handler
+   "resources/templates/list" resource-templates-list-handler
+   "resources/subscribe" resource-subscribe-handler
+   "resources/unsubscribe" resource-unsubscribe-handler
+   "tools/list" tool-list-handler
+   "tools/call" tool-call-handler
+   "notifications/cancelled" cancelled-notification-handler
    "notifications/roots/list_changed" (user-callback :on-client-root-list-changed)})
-
 
 ;; Initialization phase, a handshake where protocol versions are tentatively agreed.
 
 (defn initialize-handler [{:keys [session message]}]
   (let [{client-protocol-version :protocolVersion
-         client-info             :clientInfo
-         client-capabilities     :capabilities} (:params message)
+         client-info :clientInfo
+         client-capabilities :capabilities} (:params message)
         {:keys [server-info
                 server-supported-protocol-versions
                 server-instructions]} @session
@@ -118,12 +143,12 @@
            :client-info client-info
            :client-capabilities client-capabilities)
     (-> {:protocolVersion protocol-version
-         :capabilities {:logging     {}
+         :capabilities {:logging {}
                         :completions {}
-                        :prompts     {:listChanged true}
-                        :resources   {:subscribe   true
-                                      :listChanged true}
-                        :tools       {:listChanged true}}
+                        :prompts {:listChanged true}
+                        :resources {:subscribe true
+                                    :listChanged true}
+                        :tools {:listChanged true}}
          :serverInfo server-info}
         (cond-> (some? server-instructions) (assoc :instructions server-instructions)))))
 
@@ -134,6 +159,6 @@
   ((user-callback :on-initialized) context))
 
 (def handler-by-method-pre-initialization
-  {"ping"                      ping-handler
-   "initialize"                initialize-handler
+  {"ping" ping-handler
+   "initialize" initialize-handler
    "notifications/initialized" initialized-notification-handler})

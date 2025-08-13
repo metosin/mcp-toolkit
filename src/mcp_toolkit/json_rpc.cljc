@@ -81,7 +81,6 @@
    (-> (notification topic)
        (assoc :params params))))
 
-
 ;;
 ;;
 ;;
@@ -104,16 +103,16 @@
         called-method-id (-> (swap! session update :last-called-method-id inc)
                              :last-called-method-id)]
     (p/create
-      (fn [resolve reject]
-        (let [response-handler (fn [{:keys [session message]}]
-                                 (swap! session update :handler-by-called-method-id dissoc called-method-id)
-                                 (if (contains? message :error)
-                                   (reject (ex-info "error" (:error message)))
-                                   (resolve (:result message))))]
-          (swap! session update :handler-by-called-method-id assoc called-method-id response-handler)
-          (send-message (-> message
-                            (assoc :jsonrpc "2.0"
-                                   :id called-method-id))))))))
+     (fn [resolve reject]
+       (let [response-handler (fn [{:keys [session message]}]
+                                (swap! session update :handler-by-called-method-id dissoc called-method-id)
+                                (if (contains? message :error)
+                                  (reject (ex-info "error" (:error message)))
+                                  (resolve (:result message))))]
+         (swap! session update :handler-by-called-method-id assoc called-method-id response-handler)
+         (send-message (-> message
+                           (assoc :jsonrpc "2.0"
+                                  :id called-method-id))))))))
 
 (defn send-message
   "Sends a message using the context's send-message function.
@@ -179,13 +178,13 @@
           (handler context)
           nil)
         ;; TODO: handle the case where the id is unknown to us.
-        ,)
+        )
       ;; TODO: handle the message's structural problem.
-      ,)))
+      )))
 
 (defn handle-message
-  "Handles incoming JSON-RPC messages, supporting both single messages and batch requests.
-   Routes messages to appropriate handlers and manages responses.
+  "Handles incoming JSON-RPC messages. As of protocol version 2025-06-18,
+   batch requests are no longer supported and will return an error.
 
    Args:
      context - The context, containing session and send-message
@@ -196,15 +195,9 @@
   [context message]
   (let [{:keys [send-message]} context]
     (if (vector? message)
-      ;; It is a batch message, if we respond it should be a batch response
-      (let [batch-response (->> message
-                                (mapv (fn [message]
-                                        (route-message (assoc context :message message)))))]
-        (-> (p/all batch-response)
-            (p/then (fn [batch-response]
-                      (let [batch-response (filterv some? batch-response)]
-                        (when (seq batch-response)
-                          (send-message batch-response)))))))
+      ;; Batch requests are not supported as of 2025-06-18
+      ;; Return an Invalid Request error
+      (send-message invalid-request-response)
       ;; It is a single message
       (-> (route-message (assoc context :message message))
           (p/then (fn [response]

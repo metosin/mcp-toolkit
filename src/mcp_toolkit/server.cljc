@@ -29,13 +29,13 @@
   nil)
 
 (def ^:private log-level->importance
-  {"debug"     0
-   "info"      1
-   "notice"    2
-   "warning"   3
-   "error"     4
-   "critical"  5
-   "alert"     6
+  {"debug" 0
+   "info" 1
+   "notice" 2
+   "warning" 3
+   "error" 4
+   "critical" 5
+   "alert" 6
    "emergency" 7})
 
 (defn notify-log
@@ -55,9 +55,9 @@
         logging-level (:logging-level @session)]
     (when (>= (log-level->importance level -1) (log-level->importance logging-level))
       (json-rpc/send-message context (json-rpc/notification "message"
-                                                            {:level  level
+                                                            {:level level
                                                              :logger logger
-                                                             :data   data}))))
+                                                             :data data}))))
   nil)
 
 (defn request-root-list
@@ -300,40 +300,41 @@
            on-initialized
            on-client-root-list-changed ;; called after the server get the notification from the client
            on-client-root-list-updated ;; called after the server updated its data
-           ,]
-    :or   {server-info                 {:name    "mcp-toolkit"
-                                        :version "0.1.1-alpha"}
-           logging-level               "debug"
-           on-initialized              request-root-list
-           on-client-root-list-changed request-root-list}}]
+           ]
+    :or {server-info {:name "mcp-toolkit"
+                      :version "0.1.1-alpha"}
+         logging-level "debug"
+         on-initialized request-root-list
+         on-client-root-list-changed request-root-list}}]
   {;; About the server
    :server-supported-protocol-versions ["2024-11-05"
-                                        "2025-03-26"]
-   :server-info                        server-info
-   :server-instructions                server-instructions
+                                        "2025-03-26"
+                                        "2025-06-18"]
+   :server-info server-info
+   :server-instructions server-instructions
 
-   :initialized                        false
-   :handler-by-method                  server.handler/handler-by-method-pre-initialization
+   :initialized false
+   :handler-by-method server.handler/handler-by-method-pre-initialization
 
-   :protocol-version                   nil ; determined at initialization
-   :prompt-by-name                     (mc/index-by :name prompts)
-   :resource-by-uri                    (mc/index-by :uri resources)
-   :tool-by-name                       (mc/index-by :name tools)
-   :resource-templates                 resource-templates
-   :resource-uri-complete-fn           resource-uri-complete-fn
-   :is-cancelled-by-request-id         {} ;; "is-cancelled" atoms indexed by request-id
-   :logging-level                      logging-level
+   :protocol-version nil ; determined at initialization
+   :prompt-by-name (mc/index-by :name prompts)
+   :resource-by-uri (mc/index-by :uri resources)
+   :tool-by-name (mc/index-by :name tools)
+   :resource-templates resource-templates
+   :resource-uri-complete-fn resource-uri-complete-fn
+   :is-cancelled-by-request-id {} ;; "is-cancelled" atoms indexed by request-id
+   :logging-level logging-level
 
-   :on-initialized                     on-initialized
-   :on-client-root-list-changed        on-client-root-list-changed
-   :on-client-root-list-updated        on-client-root-list-updated
+   :on-initialized on-initialized
+   :on-client-root-list-changed on-client-root-list-changed
+   :on-client-root-list-updated on-client-root-list-updated
 
    ;; About the client
-   :client-info                        nil
-   :client-capabilities                nil
-   :client-subscribed-resource-uris    #{}
-   :client-root-by-uri                 {}
+   :client-info nil
+   :client-capabilities nil
+   :client-subscribed-resource-uris #{}
+   :client-root-by-uri {}
 
-   :last-called-method-id              -1 ;; Used for calling methods on the remote site
-   :handler-by-called-method-id        {} ;; The response handlers
-   ,})
+   :last-called-method-id -1 ;; Used for calling methods on the remote site
+   :handler-by-called-method-id {} ;; The response handlers
+   })

@@ -278,16 +278,16 @@
                 client-capabilities
                 protocol-version]} @session]
     (-> (json-rpc/call-remote-method context {:method "initialize"
-                                              :params {:clientInfo      client-info
-                                                       :capabilities    client-capabilities
+                                              :params {:clientInfo client-info
+                                                       :capabilities client-capabilities
                                                        :protocolVersion protocol-version}})
         (p/then (fn [{:keys [protocolVersion capabilities serverInfo] :as result}]
                   (swap! session assoc
-                    :server-protocol-version protocolVersion
-                    :server-capabilities capabilities
-                    :server-info serverInfo
-                    :initialized true
-                    :handler-by-method client.handler/handler-by-method-post-initialization)
+                         :server-protocol-version protocolVersion
+                         :server-capabilities capabilities
+                         :server-info serverInfo
+                         :initialized true
+                         :handler-by-method client.handler/handler-by-method-post-initialization)
                   (json-rpc/send-message context (json-rpc/notification "initialized"))
                   ((user-callback :on-initialized) context)))))
   nil)
@@ -314,39 +314,39 @@
            on-server-resource-list-updated
            on-server-tool-list-changed
            on-server-tool-list-updated]
-    :or   {client-info                     {:name    "mcp-toolkit"
-                                            :version "0.1.1-alpha"}
-           client-capabilities             {:roots {:listChanged true}}
-           protocol-version                "2025-03-26"
-           on-initialized                  default-on-initialized
-           on-server-prompt-list-changed   request-prompt-list
-           on-server-resource-list-changed request-resource-list
-           on-server-tool-list-changed     request-tool-list}}]
-  {:client-info                 client-info
-   :client-capabilities         client-capabilities
-   :protocol-version            protocol-version
+    :or {client-info {:name "mcp-toolkit"
+                      :version "0.1.1-alpha"}
+         client-capabilities {:roots {:listChanged true}}
+         protocol-version "2025-06-18"
+         on-initialized default-on-initialized
+         on-server-prompt-list-changed request-prompt-list
+         on-server-resource-list-changed request-resource-list
+         on-server-tool-list-changed request-tool-list}}]
+  {:client-info client-info
+   :client-capabilities client-capabilities
+   :protocol-version protocol-version
 
-   :initialized                 false
-   :on-initialized              on-initialized
-   :handler-by-method           client.handler/handler-by-method-pre-initialization
+   :initialized false
+   :on-initialized on-initialized
+   :handler-by-method client.handler/handler-by-method-pre-initialization
 
-   :root-by-uri                 (mc/index-by :uri roots)
+   :root-by-uri (mc/index-by :uri roots)
 
-   :server-prompt-by-name       {}
-   :server-resource-by-uri      {}
-   :server-tool-by-name         {}
+   :server-prompt-by-name {}
+   :server-resource-by-uri {}
+   :server-tool-by-name {}
 
-   :on-sampling-requested           on-sampling-requested
-   :on-server-progress              on-server-progress
-   :on-server-log                   on-server-log
-   :on-server-prompt-list-changed   on-server-prompt-list-changed
-   :on-server-prompt-list-updated   on-server-prompt-list-updated
-   :on-server-resource-changed      on-server-resource-changed
+   :on-sampling-requested on-sampling-requested
+   :on-server-progress on-server-progress
+   :on-server-log on-server-log
+   :on-server-prompt-list-changed on-server-prompt-list-changed
+   :on-server-prompt-list-updated on-server-prompt-list-updated
+   :on-server-resource-changed on-server-resource-changed
    :on-server-resource-list-changed on-server-resource-list-changed
    :on-server-resource-list-updated on-server-resource-list-updated
-   :on-server-tool-list-changed     on-server-tool-list-changed
-   :on-server-tool-list-updated     on-server-tool-list-updated
+   :on-server-tool-list-changed on-server-tool-list-changed
+   :on-server-tool-list-updated on-server-tool-list-updated
 
-   :last-called-method-id       -1 ;; Used for calling methods on the remote site
+   :last-called-method-id -1 ;; Used for calling methods on the remote site
    :handler-by-called-method-id {} ;; The response handlers
-   ,})
+   })

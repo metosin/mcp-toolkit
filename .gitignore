@@ -8,3 +8,7 @@ node_modules/
 out/
 .clj-kondo
 .lsp
+# clojure-mcp
+.clojure-mcp/
+.clojure-mcp/scratch_pad.edn
+.clojure-mcp/config.edn
