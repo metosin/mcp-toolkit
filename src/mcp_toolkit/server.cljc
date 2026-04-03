@@ -2,7 +2,8 @@
   (:require [mate.core :as mc]
             [mcp-toolkit.json-rpc :as json-rpc]
             [mcp-toolkit.impl.server.handler :as server.handler]
-            [mcp-toolkit.impl.common :refer [user-callback]]
+            [mcp-toolkit.impl.common :refer [user-callback munge-name]]
+            [mcp-toolkit.registry :as registry]
             [promesa.core :as p]))
 
 ;;
@@ -285,8 +286,33 @@
 ;;
 ;;
 
+(defn- registry-tools->protocol
+  "Convert registry tool index entries to MCP protocol format.
+   Tool names are munged from keywords to strings."
+  [registry]
+  (->> @registry
+       :tool-index
+       (map (fn [[tool-name {:keys [handler plugin timeout dependencies group]}]]
+              (let [tool-def (->> (get-in @registry [:plugins plugin :tools])
+                                  (some #(when (= (:name %) tool-name) %)))]
+                {:name (munge-name tool-name)
+                 :description (:description tool-def)
+                 :inputSchema (:inputSchema tool-def)
+                 :handler handler
+                 :plugin plugin
+                 :timeout timeout
+                 :dependencies dependencies
+                 :group group})))
+       (into [])))
+
 (defn create-session
-  "Returns the state of a newly created session."
+  "Returns the state of a newly created session.
+
+   Accepts either direct vectors (:tools, :prompts, :resources)
+   or a :registry atom from mcp-toolkit.registry. When :registry
+   is provided, tools/prompts/resources are derived from it.
+   Direct vectors can still be used and are merged with registry
+   entries if both are provided."
   [{:keys [server-info
            server-instructions
 
@@ -300,40 +326,68 @@
            on-initialized
            on-client-root-list-changed ;; called after the server get the notification from the client
            on-client-root-list-updated ;; called after the server updated its data
-           ]
+
+           ;; Plugin registry (optional)
+           registry]
     :or   {server-info                 {:name    "mcp-toolkit"
                                         :version "0.1.1-alpha"}
            logging-level               "debug"
            on-initialized              request-root-list
            on-client-root-list-changed request-root-list}}]
-  {;; About the server
-   :server-supported-protocol-versions ["2024-11-05"
-                                        "2025-03-26"]
-   :server-info                        server-info
-   :server-instructions                server-instructions
+  (let [;; If registry is provided, derive tools/prompts/resources from it
+        registry-tools (when registry
+                         (registry-tools->protocol registry))
+        registry-prompts (when registry
+                           (registry/all-prompts registry))
+        registry-resources (when registry
+                             (registry/all-resources registry))
+        ;; Merge registry-derived with direct vectors (direct takes precedence for conflicts)
+        all-tools (if registry
+                    (if tools
+                      (into registry-tools tools)
+                      registry-tools)
+                    tools)
+        all-prompts (if registry
+                      (if prompts
+                        (into registry-prompts prompts)
+                        registry-prompts)
+                      prompts)
+        all-resources (if registry
+                        (if resources
+                          (into registry-resources resources)
+                          registry-resources)
+                        resources)]
+    {;; About the server
+     :server-supported-protocol-versions ["2024-11-05"
+                                          "2025-03-26"]
+     :server-info                        server-info
+     :server-instructions                server-instructions
 
-   :initialized                        false
-   :handler-by-method                  server.handler/handler-by-method-pre-initialization
+     :initialized                        false
+     :handler-by-method                  server.handler/handler-by-method-pre-initialization
 
-   :protocol-version                   nil ; determined at initialization
-   :prompt-by-name                     (mc/index-by :name prompts)
-   :resource-by-uri                    (mc/index-by :uri resources)
-   :tool-by-name                       (mc/index-by :name tools)
-   :resource-templates                 resource-templates
-   :resource-uri-complete-fn           resource-uri-complete-fn
-   :is-cancelled-by-request-id         {} ;; "is-cancelled" atoms indexed by request-id
-   :logging-level                      logging-level
+     :protocol-version                   nil ; determined at initialization
+     :prompt-by-name                     (mc/index-by :name all-prompts)
+     :resource-by-uri                    (mc/index-by :uri all-resources)
+     :tool-by-name                       (mc/index-by :name all-tools)
+     :resource-templates                 resource-templates
+     :resource-uri-complete-fn           resource-uri-complete-fn
+     :is-cancelled-by-request-id         {} ;; "is-cancelled" atoms indexed by request-id
+     :logging-level                      logging-level
 
-   :on-initialized                     on-initialized
-   :on-client-root-list-changed        on-client-root-list-changed
-   :on-client-root-list-updated        on-client-root-list-updated
+     :on-initialized                     on-initialized
+     :on-client-root-list-changed        on-client-root-list-changed
+     :on-client-root-list-updated        on-client-root-list-updated
 
-   ;; About the client
-   :client-info                        nil
-   :client-capabilities                nil
-   :client-subscribed-resource-uris    #{}
-   :client-root-by-uri                 {}
+     ;; Registry reference for runtime tool dispatch
+     :registry                           registry
 
-   :last-called-method-id              -1 ;; Used for calling methods on the remote site
-   :handler-by-called-method-id        {} ;; The response handlers
-   })
+     ;; About the client
+     :client-info                        nil
+     :client-capabilities                nil
+     :client-subscribed-resource-uris    #{}
+     :client-root-by-uri                 {}
+
+     :last-called-method-id              -1 ;; Used for calling methods on the remote site
+     :handler-by-called-method-id        {} ;; The response handlers
+     }))

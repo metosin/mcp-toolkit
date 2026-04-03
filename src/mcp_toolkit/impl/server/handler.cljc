@@ -1,6 +1,7 @@
 (ns ^:no-doc mcp-toolkit.impl.server.handler
   (:require [mcp-toolkit.json-rpc :as json-rpc]
-            [mcp-toolkit.impl.common :refer [user-callback]]
+            [mcp-toolkit.impl.common :refer [user-callback unmunge-name]]
+            [mcp-toolkit.registry :as registry]
             [promesa.core :as p]))
 
 (defn ping-handler [_]
@@ -67,15 +68,28 @@
    #_#_:nextCursor "next-page-cursor"})
 
 (defn tool-call-handler [{:keys [session message] :as context}]
-  (let [{:keys [name arguments]} (:params message)]
-    (if-some [tool-fn (-> @session :tool-by-name (get name) :tool-fn)]
-      (-> (tool-fn context arguments)
-          (p/catch (fn [exception]
-                     {:content [{:type "text"
-                                 :text (ex-message exception)}]
-                      :isError true})))
-      ;; FIXME: this is wrong because it will be interpreted as result data
-      (json-rpc/invalid-tool-name (:id message) name))))
+  (let [{:keys [name arguments]} (:params message)
+        reg-ref (:registry @session)]
+    (if reg-ref
+      ;; Registry mode: unmunge name, O(1) lookup via index
+      (let [tool-name (unmunge-name name)]
+        (if-some [{:keys [handler timeout]} (registry/find-tool reg-ref tool-name)]
+          (-> (if timeout
+                (p/timeout (handler context arguments) timeout)
+                (handler context arguments))
+              (p/catch (fn [exception]
+                         {:content [{:type "text"
+                                     :text (ex-message exception)}]
+                          :isError true})))
+          (json-rpc/invalid-tool-name (:id message) name)))
+      ;; Legacy mode: look up in session's tool-by-name map
+      (if-some [tool-fn (-> @session :tool-by-name (get name) :tool-fn)]
+        (-> (tool-fn context arguments)
+            (p/catch (fn [exception]
+                       {:content [{:type "text"
+                                   :text (ex-message exception)}]
+                        :isError true})))
+        (json-rpc/invalid-tool-name (:id message) name)))))
 
 (defn cancelled-notification-handler [{:keys [session message]}]
   (when-some [is-cancelled-atom (-> @session :is-cancelled-by-request-id (get (-> message :params :requestId)))]
