@@ -47,10 +47,15 @@
 | 0c54c24 | munge-name/unmunge-name in impl/common.cljc | Protocol boundary conversion, round-trip verified |
 | 5613f25 | wire registry into server.cljc + handler.cljc | create-session accepts :registry, tool-call routes through O(1) index, REPL-verified two-plugin dispatch |
 | f55c64c | phase-2: Streamable HTTP transport | 2025-11-25 spec: POST/GET/DELETE, Origin validation, SSE, session pruning, 0 lint warnings |
+| d68a17a | test infrastructure: test.check, fixtures | kaocha + test.check running, 23 unit tests + 4 property-based (defspec), mock HTTP fixtures |
+| 6720e75 | fix: test helpers generate unique tool names | make-tool uses cond-> for optional fields, make-plugin unique defaults, 28 tests 0 failures |
 
 **Current branch**: `feat/streamablehttp`
-**Current phase**: Phase 2 done (Streamable HTTP). Ready for Phase 3: pinboard-mcp migration as proof of concept
+**Current phase**: Phase 2.1 done (streamable_http written). Needs spec fixes before migration.
+  Pending fixes: MCP-Protocol-Version validation, 400 vs 404 sessions, request vs notification detection,
+  SSE channel wiring, request body size limit, stop function for pruning thread.
 **nREPL**: port 7890 (started via `clj -M:nrepl --port 7890`)
+**Test status**: 28 tests, 65 assertions, 0 failures (kaocha JVM + CLJS)
 
 **Key decisions made this session**:
 - Plugin registry with O(1) derived index, collision detection in `swap!`
@@ -59,7 +64,7 @@
 - Fork-vs-PR strategy for metosin upstream
 - Deferred: Squint, cross-plugin calls, token bloat, observability, hot-reload
 
-**Next**: Phase 3 — migrate pinboard-mcp to plugin format, then unified server example
+**Next**: Phase 2.2 — fix streamable_http spec compliance, then write HTTP handler tests, then migration
 
 ---
 
@@ -107,7 +112,14 @@ src/mcp_toolkit/
 │       └── handler.cljc   ;; Client-side handlers
 ├── registry.cljc          ;; NEW: Plugin registry (Sprint 1)
 └── transport/
-    └── streamable_http.clj ;; NEW: Streamable HTTP transport (Sprint 1-2)
+    └── streamable_http.clj ;; NEW: Streamable HTTP transport (Phase 2)
+
+test/mcp_toolkit/
+├── core_test.cljc           ;; Existing handshake test (CSP channels)
+├── registry_test.clj        ;; NEW: 23 unit + 4 property tests (test.check)
+└── test/
+    ├── fixtures.clj         ;; NEW: with-registry, with-http-server, mock-request
+    └── util.cljc            ;; Existing test utilities
 ```
 
 ## Current Dependencies
