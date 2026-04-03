@@ -1,7 +1,8 @@
 {:paths ["src"]
 
  :deps {taipei.404/mate        {:mvn/version "0.0.9"}
-        funcool/promesa        {:mvn/version "11.0.678"}}
+        funcool/promesa        {:mvn/version "11.0.678"}
+        metosin/malli          {:mvn/version "0.16.4"}}
 
  :aliases {:dev {:extra-deps {org.clojure/clojure            {:mvn/version "1.12.1"}
                               org.clojure/clojurescript      {:mvn/version "1.12.42"}}}
