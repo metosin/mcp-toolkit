@@ -11,27 +11,25 @@
                     :or {name :test/tool
                          description "A test tool"
                          input-schema {:type "object" :properties {}}
-                         handler (fn [_ args] {:content [{:type "text" :text (str "ok: " args)}]})
-                         timeout nil
-                         dependencies nil
-                         group nil}}]
-  {:name name
-   :description description
-   :inputSchema input-schema
-   :handler handler
-   :timeout timeout
-   :dependencies dependencies
-   :group group})
+                         handler (fn [_ args] {:content [{:type "text" :text (str "ok: " args)}]})}}]
+  (cond-> {:name name
+           :description description
+           :inputSchema input-schema
+           :handler handler}
+    (some? timeout) (assoc :timeout timeout)
+    (some? dependencies) (assoc :dependencies dependencies)
+    (some? group) (assoc :group group)))
 
 (defn make-plugin [& {:keys [name version tools dependencies lifecycle]
                       :or {name :test-plugin
                            version "0.1.0"
-                           tools [(make-tool)]
+                           tools nil
                            dependencies nil
                            lifecycle nil}}]
-  (cond-> {:name name :version version :tools tools}
-    dependencies (assoc :dependencies dependencies)
-    lifecycle (assoc :lifecycle lifecycle)))
+  (let [default-tools [(make-tool :name (keyword (or (namespace name) (str name)) "tool"))]]
+    (cond-> {:name name :version version :tools (or tools default-tools)}
+      dependencies (assoc :dependencies dependencies)
+      lifecycle (assoc :lifecycle lifecycle))))
 
 (deftest register!-success
   (let [r (reg/create)]
@@ -62,7 +60,7 @@
     (is (= [:a] (reg/list-plugins r)))))
 
 (deftest register!-invalid-plugin
-  (testing "missing :name"
+  (testing "plugin: missing :name"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Invalid plugin"
                           (reg/register! (reg/create) {:version "1.0" :tools []}))))
   (testing "missing :version"
@@ -73,13 +71,13 @@
                           (reg/register! (reg/create) {:name :test :version "1.0"})))))
 
 (deftest register!-invalid-tool
-  (testing "missing :handler"
-    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Invalid tool"
+  (testing "plugin: missing :handler"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Invalid plugin"
                           (reg/register! (reg/create)
                                          {:name :test :version "1.0"
                                           :tools [{:name :t :description "x" :inputSchema {}}]}))))
-  (testing "missing :name"
-    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Invalid tool"
+  (testing "plugin: missing :name"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Invalid plugin"
                           (reg/register! (reg/create)
                                          {:name :test :version "1.0"
                                           :tools [{:description "x" :inputSchema {} :handler (fn [])}]})))))
@@ -177,11 +175,11 @@
 (deftest tool-accessors
   (let [r (reg/create)]
     (reg/register! r (make-plugin :name :t :tools
-                                  [(make-tool :name :t/a :timeout 3000 :dependencies [:x] :group :g)
+                                  [(make-tool :name :t/a :timeout 3000 :dependencies [:t/b] :group :g)
                                    (make-tool :name :t/b)]))
     (is (= 3000 (reg/get-tool-timeout r :t/a)))
     (is (nil? (reg/get-tool-timeout r :t/b)))
-    (is (= [:x] (reg/get-tool-dependencies r :t/a)))
+    (is (= [:t/b] (reg/get-tool-dependencies r :t/a)))
     (is (= [] (reg/get-tool-dependencies r :t/b)))
     (is (= :g (reg/get-tool-group r :t/a)))
     (is (nil? (reg/get-tool-group r :t/b)))
