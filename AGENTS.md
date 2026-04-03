@@ -41,10 +41,12 @@
 | Commit | What | Why |
 |--------|------|-----|
 | ae9f568 | PLAN.md — comprehensive unified plan | Baseline architecture with plugin registry, transport, mcp-injector integration |
+| fba5c35 | AGENTS.md — dev contract | Establishes dev discipline: REPL-first, cljfmt/kondo, commit snapshots |
+| 59e2adb | `registry.cljc` — plugin registry | Sprint 1.1-1.2: schemas, register!, O(1) index, collision detection in swap!, Malli validation |
 
 **Current branch**: `feat/streamablehttp`
-**Current phase**: Planning complete, ready for Sprint 1
-**nREPL**: port 7888 (started via `clj -M:nrepl`)
+**Current phase**: Sprint 1 in progress — registry done, next: munge-name + wire into server/handler
+**nREPL**: port 7890 (started via `clj -M:nrepl --port 7890`)
 
 **Key decisions made this session**:
 - Plugin registry with O(1) derived index, collision detection in `swap!`
@@ -53,7 +55,7 @@
 - Fork-vs-PR strategy for metosin upstream
 - Deferred: Squint, cross-plugin calls, token bloat, observability, hot-reload
 
-**Next**: Sprint 1 — `registry.cljc`, transport, wire it together
+**Next**: Sprint 1.3 — `munge-name`/`unmunge-name`, then wire registry into `server.cljc` + `handler.cljc`
 
 ---
 
