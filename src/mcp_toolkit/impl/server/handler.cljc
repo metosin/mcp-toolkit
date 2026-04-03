@@ -3,7 +3,7 @@
             [mcp-toolkit.impl.common :refer [user-callback]]
             [promesa.core :as p]))
 
-(defn ping-handler [context]
+(defn ping-handler [_]
   {})
 
 (defn set-logging-level-handler [{:keys [session message]}]

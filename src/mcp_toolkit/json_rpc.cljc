@@ -97,7 +97,7 @@
 
    Returns:
      A promise that resolves to the method result or rejects with the error."
-  [context {:keys [method params] :as message}]
+  [context {:keys [_method _params] :as message}]
   (let [{:keys [session send-message]} context
         ;; Picks a unique method id for a remote call. Robust to concurrent calls.
         ;; TODO: ensure it loops when reaching the maximum integer value.
@@ -179,9 +179,9 @@
           (handler context)
           nil)
         ;; TODO: handle the case where the id is unknown to us.
-        ,)
+        nil)
       ;; TODO: handle the message's structural problem.
-      ,)))
+      nil)))
 
 (defn handle-message
   "Handles incoming JSON-RPC messages, supporting both single messages and batch requests.
