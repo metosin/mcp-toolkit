@@ -300,7 +300,7 @@
            on-initialized
            on-client-root-list-changed ;; called after the server get the notification from the client
            on-client-root-list-updated ;; called after the server updated its data
-           ,]
+           ]
     :or   {server-info                 {:name    "mcp-toolkit"
                                         :version "0.1.1-alpha"}
            logging-level               "debug"
@@ -336,4 +336,4 @@
 
    :last-called-method-id              -1 ;; Used for calling methods on the remote site
    :handler-by-called-method-id        {} ;; The response handlers
-   ,})
+   })

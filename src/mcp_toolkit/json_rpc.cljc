@@ -81,7 +81,6 @@
    (-> (notification topic)
        (assoc :params params))))
 
-
 ;;
 ;;
 ;;
@@ -104,16 +103,16 @@
         called-method-id (-> (swap! session update :last-called-method-id inc)
                              :last-called-method-id)]
     (p/create
-      (fn [resolve reject]
-        (let [response-handler (fn [{:keys [session message]}]
-                                 (swap! session update :handler-by-called-method-id dissoc called-method-id)
-                                 (if (contains? message :error)
-                                   (reject (ex-info "error" (:error message)))
-                                   (resolve (:result message))))]
-          (swap! session update :handler-by-called-method-id assoc called-method-id response-handler)
-          (send-message (-> message
-                            (assoc :jsonrpc "2.0"
-                                   :id called-method-id))))))))
+     (fn [resolve reject]
+       (let [response-handler (fn [{:keys [session message]}]
+                                (swap! session update :handler-by-called-method-id dissoc called-method-id)
+                                (if (contains? message :error)
+                                  (reject (ex-info "error" (:error message)))
+                                  (resolve (:result message))))]
+         (swap! session update :handler-by-called-method-id assoc called-method-id response-handler)
+         (send-message (-> message
+                           (assoc :jsonrpc "2.0"
+                                  :id called-method-id))))))))
 
 (defn send-message
   "Sends a message using the context's send-message function.

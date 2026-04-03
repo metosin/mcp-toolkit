@@ -283,11 +283,11 @@
                                                        :protocolVersion protocol-version}})
         (p/then (fn [{:keys [protocolVersion capabilities serverInfo]}]
                   (swap! session assoc
-                    :server-protocol-version protocolVersion
-                    :server-capabilities capabilities
-                    :server-info serverInfo
-                    :initialized true
-                    :handler-by-method client.handler/handler-by-method-post-initialization)
+                         :server-protocol-version protocolVersion
+                         :server-capabilities capabilities
+                         :server-info serverInfo
+                         :initialized true
+                         :handler-by-method client.handler/handler-by-method-post-initialization)
                   (json-rpc/send-message context (json-rpc/notification "initialized"))
                   ((user-callback :on-initialized) context)))))
   nil)
@@ -349,4 +349,4 @@
 
    :last-called-method-id       -1 ;; Used for calling methods on the remote site
    :handler-by-called-method-id {} ;; The response handlers
-   ,})
+   })

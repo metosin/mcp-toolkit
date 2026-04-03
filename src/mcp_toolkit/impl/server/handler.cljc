@@ -26,8 +26,7 @@
   {:prompts (-> @session :prompt-by-name vals
                 (->> (mapv (fn [prompt]
                              (select-keys prompt [:name :description :arguments])))))
-   #_#_
-   :nextCursor "next-page-cursor"})
+   #_#_:nextCursor "next-page-cursor"})
 
 (defn prompt-get-handler [{:keys [session message] :as context}]
   (let [{:keys [name arguments]} (:params message)]
@@ -39,8 +38,7 @@
   {:resources (-> @session :resource-by-uri vals
                   (->> (mapv (fn [resource]
                                (select-keys resource [:uri :name :description :mimeType])))))
-   #_#_
-   :nextCursor "next-page-cursor"})
+   #_#_:nextCursor "next-page-cursor"})
 
 (defn resource-read-handler [{:keys [session message]}]
   (let [{:keys [uri]} (:params message)]
@@ -66,8 +64,7 @@
   {:tools (-> @session :tool-by-name vals
               (->> (mapv (fn [tool]
                            (select-keys tool [:name :description :inputSchema])))))
-   #_#_
-   :nextCursor "next-page-cursor"})
+   #_#_:nextCursor "next-page-cursor"})
 
 (defn tool-call-handler [{:keys [session message] :as context}]
   (let [{:keys [name arguments]} (:params message)]
@@ -99,7 +96,6 @@
    "tools/call"                       tool-call-handler
    "notifications/cancelled"          cancelled-notification-handler
    "notifications/roots/list_changed" (user-callback :on-client-root-list-changed)})
-
 
 ;; Initialization phase, a handshake where protocol versions are tentatively agreed.
 
