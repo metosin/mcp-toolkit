@@ -43,9 +43,12 @@
 | ae9f568 | PLAN.md — comprehensive unified plan | Baseline architecture with plugin registry, transport, mcp-injector integration |
 | fba5c35 | AGENTS.md — dev contract | Establishes dev discipline: REPL-first, cljfmt/kondo, commit snapshots |
 | 59e2adb | `registry.cljc` — plugin registry | Sprint 1.1-1.2: schemas, register!, O(1) index, collision detection in swap!, Malli validation |
+| 89b63d0 | lint: fix all 9 pre-existing kondo warnings | Clean baseline: 0 errors, 0 warnings |
+| 0c54c24 | munge-name/unmunge-name in impl/common.cljc | Protocol boundary conversion, round-trip verified |
+| 5613f25 | wire registry into server.cljc + handler.cljc | create-session accepts :registry, tool-call routes through O(1) index, REPL-verified two-plugin dispatch |
 
 **Current branch**: `feat/streamablehttp`
-**Current phase**: Sprint 1 in progress — registry done, next: munge-name + wire into server/handler
+**Current phase**: Sprint 1.5 — REPL test unified server with mock plugins, then Streamable HTTP transport
 **nREPL**: port 7890 (started via `clj -M:nrepl --port 7890`)
 
 **Key decisions made this session**:
@@ -55,7 +58,7 @@
 - Fork-vs-PR strategy for metosin upstream
 - Deferred: Squint, cross-plugin calls, token bloat, observability, hot-reload
 
-**Next**: Sprint 1.3 — `munge-name`/`unmunge-name`, then wire registry into `server.cljc` + `handler.cljc`
+**Next**: Sprint 1.5 — REPL test unified server with mock plugins, then Sprint 2: Streamable HTTP transport
 
 ---
 
