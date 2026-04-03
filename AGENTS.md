@@ -46,9 +46,10 @@
 | 89b63d0 | lint: fix all 9 pre-existing kondo warnings | Clean baseline: 0 errors, 0 warnings |
 | 0c54c24 | munge-name/unmunge-name in impl/common.cljc | Protocol boundary conversion, round-trip verified |
 | 5613f25 | wire registry into server.cljc + handler.cljc | create-session accepts :registry, tool-call routes through O(1) index, REPL-verified two-plugin dispatch |
+| f55c64c | phase-2: Streamable HTTP transport | 2025-11-25 spec: POST/GET/DELETE, Origin validation, SSE, session pruning, 0 lint warnings |
 
 **Current branch**: `feat/streamablehttp`
-**Current phase**: Sprint 1.5 — REPL test unified server with mock plugins, then Streamable HTTP transport
+**Current phase**: Phase 2 done (Streamable HTTP). Ready for Phase 3: pinboard-mcp migration as proof of concept
 **nREPL**: port 7890 (started via `clj -M:nrepl --port 7890`)
 
 **Key decisions made this session**:
@@ -58,7 +59,7 @@
 - Fork-vs-PR strategy for metosin upstream
 - Deferred: Squint, cross-plugin calls, token bloat, observability, hot-reload
 
-**Next**: Sprint 1.5 — REPL test unified server with mock plugins, then Sprint 2: Streamable HTTP transport
+**Next**: Phase 3 — migrate pinboard-mcp to plugin format, then unified server example
 
 ---
 
