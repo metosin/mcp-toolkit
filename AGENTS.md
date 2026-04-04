@@ -33,6 +33,10 @@
 
 4. **nREPL port conflicts** — clojure-mcp runs its own nREPL on 7888. Always use port 7890 for mcp-toolkit. If nREPL has stale classpath, kill it and restart: `fuser -k 7890/tcp && cd /home/wes/src/mcp-toolkit && clj -M:nrepl --port 7890 &`
 
+5. **Fixture arity bugs** — `handler-response` takes `[handler method uri & [{:keys [headers body]}]]`. If you pass headers and body as separate positional args, the body gets silently ignored. Always pass `{:headers ... :body ...}` as the single optional map.
+
+6. **Case-insensitive headers** — http-kit lowercases header names in real requests. `find-header` now handles keyword keys, string keys, and any case. Fixtures pass headers with their original case (`"MCP-Session-Id"`), transport handles them all.
+
 ### After Completing a Task
 
 1. **Run full lint**: `clj-kondo --lint src/`
@@ -58,11 +62,13 @@
 | f55c64c | phase-2: Streamable HTTP transport | 2025-11-25 spec: POST/GET/DELETE, Origin validation, SSE, session pruning, 0 lint warnings |
 | d68a17a | test infrastructure: test.check, fixtures | kaocha + test.check running, 23 unit tests + 4 property-based (defspec), mock HTTP fixtures |
 | 6720e75 | fix: test helpers generate unique tool names | make-tool uses cond-> for optional fields, make-plugin unique defaults, 28 tests 0 failures |
+| ded498d | phase-2a: streamable_http 10 MCP spec fixes | Protocol version validation, session tombstone, 3-way session check, handle-dispatch-response helper |
+| d03a888 | phase-2b: HTTP integration tests + find-header fix | 24 new HTTP tests, fixture arity fixes, case-insensitive header lookup, 52 tests 0 failures |
 
 **Current branch**: `feat/streamablehttp`
-**Current phase**: Phase 2 streamable_http written (ORIGINAL version, NOT patched). Needs spec-compliance fixes — NOT YET APPLIED.
-**nREPL**: port 7890 (started via `clj -M:nrepl --port 7890`)
-**Test status**: 28 tests, 65 assertions, 0 failures (kaocha JVM + CLJS)
+**Current phase**: Phase 2 COMPLETE — streamable_http spec-compliant + 24 HTTP tests passing.
+**nREPL**: port 7890 (started via `clj -M:test:nrepl --port 7890`)
+**Test status**: 52 tests (28 unit + 24 HTTP), 101 assertions, 0 failures (kaocha JVM + CLJS)
 **Lint**: src/ = 0 errors, 0 warnings. test/ = 1 error, 9 warnings (pre-existing from upstream)
 
 **Key decisions made this session**:
@@ -71,25 +77,17 @@
 - Admin vs standard plugin split for mcp-injector (security)
 - Fork-vs-PR strategy for metosin upstream
 - Deferred: Squint, cross-plugin calls, token bloat, observability, hot-reload
+- find-header now handles keyword AND string keys with case-insensitive matching (critical for test mocks vs real http-kit)
+- Fixture `post-json`/`get-request`/`delete-request` use `{:headers ... :body ...}` map consistently
 
-**CRITICAL: streamable_http.clj still needs these fixes (NOT applied)**:
-1. Add `supported-protocol-versions` constant + `validate-protocol-version` function
-2. Replace `create-session-store` to use `{:sessions {} :terminated {}}` structure
-3. Replace `valid-session?` to check `:sessions` key
-4. Add `terminated-session?` function
-5. Replace `delete-session!` with atomic tombstone version
-6. Replace session check in `handle-post` with cond: missing-id (400), terminated (404), invalid (400)
-7. Add protocol-version check in `handle-post` before session check
-8. Replace `handle-get` session check to also check `terminated-session?`
-9. Replace `handle-delete` to handle `:existed`/`:already-terminated`/`:not-found` returns
-10. Add `handle-dispatch-response` helper for request vs notification detection
+**Phase 2A applied** — streamable_http.clj (354 lines) is now spec-compliant with MCP 2025-11-25:
+- supported-protocol-versions constant + validate-protocol-version using find-header
+- Session store uses `{:sessions {} :terminated {}}` with tombstone lifecycle
+- deleted-session! returns `:existed`/`:already-terminated`/`:not-found`
+- handle-post: 3-way cond (missing-id→400, terminated→404, invalid→400)
+- handle-dispatch-response helper for request vs notification detection
 
-The original `streamable_http.clj` on disk is the CLEAN, WORKING version. All patch attempts
-failed with paren mismatches. DO NOT try to patch it. Either:
-(a) copy the whole function from a scratch file that's been verified in nREPL, or
-(b) rewrite the entire file in one write operation and verify balance first
-
-**Next**: Fix streamable_http.clj spec compliance (10 changes above), then write HTTP tests
+**Next**: Phase 2C (registry transport integration tests), then Phase 3 (Babashka support)
 
 ---
 
@@ -138,11 +136,12 @@ src/mcp_toolkit/
 │   └── client/
 │       └── handler.cljc   ;; Client-side handlers
 └── transport/
-    └── streamable_http.clj ;; Streamable HTTP transport (Phase 2, UNPATCHED)
+    └── streamable_http.clj ;; Streamable HTTP transport (Phase 2, SPEC-COMPLIANT)
 
 test/mcp_toolkit/
 ├── core_test.cljc           ;; Existing handshake test (CSP channels)
 ├── registry_test.clj        ;; 23 unit + 4 property tests (test.check)
+├── streamable_http_test.clj ;; 24 HTTP integration tests (Phase 2B)
 └── test/
     ├── fixtures.clj         ;; with-registry, with-http-server, mock-request
     └── util.cljc            ;; Existing test utilities
@@ -164,40 +163,3 @@ test/mcp_toolkit/
 - `lambdaisland/chuck` 0.2.136 — test.check integration
 - `http-kit/http-kit` 2.8.0 — HTTP server (tests)
 - `cheshire/cheshire` 5.13.0 — JSON (tests)
-
----
-
-## How to Fix streamable_http.clj (Next Session)
-
-The working file at `src/mcp_toolkit/transport/streamable_http.clj` (285 lines) is the ORIGINAL
-unpatched version. It needs the following 10 changes per the MCP 2025-11-25 spec review.
-
-**APPROACH**: For EACH change below, write the new code to a small scratch file, load it in
-nREPL to verify it parses, then use `clojure-dev_clojure_edit` to replace the old version
-in the main file.
-
-1. **Add protocol versions** — Insert after imports (line ~22):
-   - `supported-protocol-versions` constant
-   - `validate-protocol-version` function
-
-2. **Replace create-session-store** (line 29): change `(atom {})` → `(atom {:sessions {} :terminated {}})`
-
-3. **Replace valid-session?** (line 44): change `(contains? @store sid)` → `(contains? (:sessions @store) sid)`
-
-4. **Add terminated-session?** — Insert after `valid-session?`:
-   ```clojure
-   (defn terminated-session? [store sid]
-     (and sid (contains? (:terminated @store) sid)))
-   ```
-
-5. **Replace delete-session!** (lines 52-58) — Use `clojure-dev_clojure_edit` with form_type `defn`, form_identifier `delete-session!`, operation `replace`
-
-6. **Update handle-post session validation** — The `if` on line 162 that checks `valid-session?` needs to become a `cond` with 3 cases: missing-id, terminated, invalid
-
-7. **Add protocol version check to handle-post** — Check `validate-protocol-version` before session validation
-
-8. **Update handle-get** (line 189) — Add `terminated-session?` check before `valid-session?` check
-
-9. **Update handle-delete** (line 212) — Replace `(if (delete-session! ...) ...)` with `(case (delete-session! ...) :existed ... :already-terminated ... :not-found ...)`
-
-10. **Add handle-dispatch-response helper** — Insert before `handle-post` definition. This handles request vs notification detection via `:id` field.
