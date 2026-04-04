@@ -245,7 +245,82 @@
     (let [store (transport/create-session-store)
           sid (transport/create-session! store)]
       (transport/delete-session! store sid)
-      ;; Force terminated-at to be old
       (swap! store assoc-in [:terminated sid :terminated-at] 0)
       (transport/prune-expired-sessions! store 1000)
       (is (empty? (:terminated @store))))))
+
+;; ─── SSE Channel Tests ───────────────────────────────────────────────────────
+
+(deftest push-notification-queues-when-no-channel
+  (testing "push-notification! queues messages when no SSE channel open"
+    (let [store (transport/create-session-store)
+          sid (transport/create-session! store)
+          msg {:jsonrpc "2.0" :method "notifications/tools/list_changed"}]
+      (transport/push-notification! store sid msg)
+      (is (= [msg] (get-in @store [:pending-sse-messages sid])))
+      (is (nil? (get-in @store [:sessions sid :sse-channels]))) "sse-channels should be nil when no channel registered")))
+
+(deftest push-notification-sends-to-open-channel
+  (testing "push-notification! sends to open channels when available"
+    (let [store (transport/create-session-store)
+          sid (transport/create-session! store)
+          msg {:jsonrpc "2.0" :method "notifications/tools/list_changed"}
+          mock-channel (Object.)
+          counter (atom 0)]
+      (swap! store update-in [:sessions sid :sse-channels] assoc mock-channel {:counter counter})
+      (transport/push-notification! store sid msg)
+      (is (= 1 @counter))
+      (is (nil? (get-in @store [:pending-sse-messages sid]))))))
+
+(deftest push-notification-handles-unknown-session
+  (testing "push-notification! is safe with unknown session-id"
+    (let [store (transport/create-session-store)]
+      (is (nil? (transport/push-notification! store "unknown-session" {})))
+      (is (nil? (transport/push-notification! store nil {}))))))
+
+(deftest drain-pending-messages-registers-channel
+  (testing "drain-pending-messages! registers channel and drains queue"
+    (let [store (transport/create-session-store)
+          sid (transport/create-session! store)
+          msg {:jsonrpc "2.0" :method "notifications/tools/list_changed"}
+          mock-channel (Object.)]
+      (swap! store update :pending-sse-messages assoc sid [msg])
+      (let [counter (transport/drain-pending-messages! store sid mock-channel)]
+        (is (contains? (get-in @store [:sessions sid :sse-channels]) mock-channel))
+        (is (some? counter))
+        (is (nil? (get-in @store [:pending-sse-messages sid])))))))
+
+(deftest drain-pending-messages-handles-empty-queue
+  (testing "drain-pending-messages! works when queue is empty"
+    (let [store (transport/create-session-store)
+          sid (transport/create-session! store)
+          mock-channel (Object.)]
+      (let [counter (transport/drain-pending-messages! store sid mock-channel)]
+        (is (contains? (get-in @store [:sessions sid :sse-channels]) mock-channel))
+        (is (some? counter))))))
+
+(deftest deregister-sse-channel-removes-channel
+  (testing "deregister-sse-channel! removes channel from session"
+    (let [store (transport/create-session-store)
+          sid (transport/create-session! store)
+          mock-channel (Object.)]
+      (swap! store update-in [:sessions sid :sse-channels] assoc mock-channel {:counter (atom 0)})
+      (is (contains? (get-in @store [:sessions sid :sse-channels]) mock-channel))
+      (transport/deregister-sse-channel! store sid mock-channel)
+      (is (not (contains? (get-in @store [:sessions sid :sse-channels]) mock-channel))))))
+
+(deftest push-notification-round-trip
+  (testing "Full round-trip: queue message, connect SSE, drain, then push more"
+    (let [store (transport/create-session-store)
+          sid (transport/create-session! store)
+          msg1 {:jsonrpc "2.0" :method "notifications/tools/list_changed"}
+          msg2 {:jsonrpc "2.0" :method "notifications/resources/list_changed"}
+          mock-channel (Object.)]
+      (transport/push-notification! store sid msg1)
+      (transport/push-notification! store sid msg2)
+      (is (= 2 (count (get-in @store [:pending-sse-messages sid]))))
+      (transport/drain-pending-messages! store sid mock-channel)
+      (is (nil? (get-in @store [:pending-sse-messages sid])))
+      (is (contains? (get-in @store [:sessions sid :sse-channels]) mock-channel))
+      (transport/push-notification! store sid msg1)
+      (is (nil? (get-in @store [:pending-sse-messages sid]))))))

@@ -90,11 +90,12 @@
             (try
               (http/send! ch-id (sse-event eid message) :text)
               (catch Exception _ nil))))
-        (swap! session-store
-               update :pending-sse-messages
-               (fn [m] (update m session-id conj message)))))))
+        (when session
+          (swap! session-store
+                 update :pending-sse-messages
+                 (fn [m] (update m session-id conj message))))))))
 
-(defn- drain-pending-messages!
+(defn drain-pending-messages!
   "Send all pending SSE messages to the given channel. Registers the channel
    in the session-store first, then drains the queue, leaving the channel
    open for future push-notification! calls."
@@ -114,7 +115,7 @@
                (fn [state] (update state :pending-sse-messages dissoc session-id)))))
     counter))
 
-(defn- deregister-sse-channel!
+(defn deregister-sse-channel!
   "Remove an SSE channel from the session store."
   [session-store session-id channel]
   (swap! session-store
