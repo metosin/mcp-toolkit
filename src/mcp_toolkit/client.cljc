@@ -3,7 +3,7 @@
             [mcp-toolkit.json-rpc :as json-rpc]
             [mcp-toolkit.impl.client.handler :as client.handler]
             [mcp-toolkit.impl.common :refer [user-callback]]
-            [promesa.core :as p]))
+            [mcp-toolkit.impl.promise :as p]))
 
 (defn request-set-logging-level
   "Sets the logging level on the MCP server.

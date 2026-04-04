@@ -1,5 +1,5 @@
 (ns mcp-toolkit.json-rpc
-  (:require [promesa.core :as p]))
+  (:require [mcp-toolkit.impl.promise :as p]))
 
 ;;
 ;; https://www.jsonrpc.org/specification

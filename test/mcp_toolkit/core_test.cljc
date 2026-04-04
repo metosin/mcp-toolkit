@@ -71,12 +71,12 @@
 
 (defn promesa-async-test [timeout p]
   #?(:cljs (async done
-             (-> (p/timeout p timeout ::timeout)
-                 (p/handle (fn [x error]
-                             (when (= x ::timeout)
-                               (is nil (str "Time out error: the test did not finish after waiting " timeout "ms.")))
-                             (or error x)))
-                 (p/then (fn [_] (done)))))
+                  (-> (p/timeout p timeout ::timeout)
+                      (p/handle (fn [x error]
+                                  (when (= x ::timeout)
+                                    (is nil (str "Time out error: the test did not finish after waiting " timeout "ms.")))
+                                  (or error x)))
+                      (p/then (fn [_] (done)))))
      :clj (-> (p/timeout p timeout ::timeout)
               (p/handle (fn [x error]
                           (when (= x ::timeout)
@@ -88,50 +88,50 @@
   (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
 
   (promesa-async-test 3000
-    (testing "the MCP handshake"
-      (let [message-logs (atom [])
-            client-session (client/create-session {;; do not automatically request the prompts, resources and tools
-                                                   :on-initialized nil})
-            server-session (server/create-session {;; do not automatically request the roots
-                                                   :on-initialized nil})
-            {:keys [client-context server-context]} (setup-and-connect-client-server client-session
-                                                                                     server-session
-                                                                                     message-logs)]
-        (-> (p/do
+                      (testing "the MCP handshake"
+                        (let [message-logs (atom [])
+                              client-session (client/create-session {;; do not automatically request the prompts, resources and tools
+                                                                     :on-initialized nil})
+                              server-session (server/create-session {;; do not automatically request the roots
+                                                                     :on-initialized nil})
+                              {:keys [client-context server-context]} (setup-and-connect-client-server client-session
+                                                                                                       server-session
+                                                                                                       message-logs)]
+                          (-> (p/do
               ;; Initiate the client-server communication
-              (client/send-first-handshake-message client-context)
+                                (client/send-first-handshake-message client-context)
 
               ;; Wait until we have enough messages for the test.
-              (util/assert-atom message-logs
-                                (fn [logs] (= (count logs) 3))
-                                3000
-                                "MCP handshake")
+                                (util/assert-atom message-logs
+                                                  (fn [logs] (= (count logs) 3))
+                                                  3000
+                                                  "MCP handshake")
 
               ;; Test if the messages are what we expect.
-              (is (= [[:-> {:jsonrpc "2.0"
-                            :method "initialize"
-                            :params {:clientInfo {:name "mcp-toolkit"
-                                                  :version "0.1.1-alpha"}
-                                     :protocolVersion "2025-03-26"
-                                     :capabilities {:roots {:listChanged true}}}
-                            :id 0}]
-                      [:<- {:jsonrpc "2.0"
-                            :result {:serverInfo {:name "mcp-toolkit"
-                                                  :version "0.1.1-alpha"}
-                                     :protocolVersion "2025-03-26"
-                                     :capabilities {:logging {}
-                                                    :completions {}
-                                                    :prompts {:listChanged true}
-                                                    :resources {:listChanged true
-                                                                :subscribe true}
-                                                    :tools {:listChanged true}}}
-                            :id 0}]
-                      [:-> {:jsonrpc "2.0"
-                            :method "notifications/initialized"}]]
-                     @message-logs)))
-            (p/handle (fn [x error]
-                        (json-rpc/close-connection client-context)
-                        (json-rpc/close-connection server-context)
+                                (is (= [[:-> {:jsonrpc "2.0"
+                                              :method "initialize"
+                                              :params {:clientInfo {:name "mcp-toolkit"
+                                                                    :version "0.1.1-alpha"}
+                                                       :protocolVersion "2025-03-26"
+                                                       :capabilities {:roots {:listChanged true}}}
+                                              :id 0}]
+                                        [:<- {:jsonrpc "2.0"
+                                              :result {:serverInfo {:name "mcp-toolkit"
+                                                                    :version "0.1.1-alpha"}
+                                                       :protocolVersion "2025-03-26"
+                                                       :capabilities {:logging {}
+                                                                      :completions {}
+                                                                      :prompts {:listChanged true}
+                                                                      :resources {:listChanged true
+                                                                                  :subscribe true}
+                                                                      :tools {:listChanged true}}}
+                                              :id 0}]
+                                        [:-> {:jsonrpc "2.0"
+                                              :method "notifications/initialized"}]]
+                                       @message-logs)))
+                              (p/handle (fn [x error]
+                                          (json-rpc/close-connection client-context)
+                                          (json-rpc/close-connection server-context)
 
                         ;; Pass through
-                        (or error x))))))))
+                                          (or error x))))))))

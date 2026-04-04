@@ -124,8 +124,14 @@ The security community has identified tool name collisions as a CVE-class vulner
 | `art19-mcp`    | Babashka | Streamable HTTP | ~1100 | Reference implementation   |
 | `podhome-mcp`  | Babashka | Streamable HTTP | ~775  | Based on art19-mcp pattern |
 | `pinboard-mcp` | Babashka | Streamable HTTP | ~463  | Bookmark API               |
-| `searxng-mcp`  | ?        | ?               | ?     | Search metasearch          |
+| `searxng-mcp`  | Babashka | Streamable HTTP | ?     | Search metaserver          |
 | `hedgedoc-mcp` | Squint   | STDIO           | ~300  | MCP over Socket.IO         |
+| `mcp-stdio-proxy` | Clojure | STDIO        | ?     | STDIO bridge               |
+| `mcp-injector` | Clojure  | HTTP client     | ?     | Gateway (consumer + future server) |
+| `auphonic-mcp` | ?        | ?               | ?     | Audio processing           |
+| `littlefox-mcp` | ?       | ?               | ?     | Unknown                    |
+| `nextcloud-mcp` | ?       | ?               | ?     | Nextcloud integration      |
+| `kroger-mcp-flake` | ?    | ?               | ?     | Kroger API                 |
 
 ### The Problem: Duplicate Transport Logic
 
@@ -591,48 +597,154 @@ example/server-http/
 
 ---
 
-## 6. Phase 3: Babashka Support
+## 6. Phase 3: Babashka Support + Promise Shim
 
-### Current Status
+### Discovery: Promesa Does NOT Load in Babashka
 
-The README says `[ ] Babashka` is unchecked, but the library should work because:
+Our initial plan assumed "promesa works in Babashka because it's just Clojure." This is **false**. After audit:
 
-1. **Promesa works in Babashka** — `promesa.core` is just Clojure
-2. **http-kit works in Babashka** — bundled in bb
-3. **CLJC files work** — `#?(:clj ...)` reader conditionals work in bb
+1. **`funcool/promesa` fails to load in bb** — the `.cljc` file hits `(extend-protocol clojure.core/Inst Duration ...)` which SCI (Small Clojure Interpreter) doesn't have. The `Inst` protocol is JVM-only.
+2. **`sci.configs/funcool/promesa` exists** — the Babashka team maintains SCI configs that expose promesa functions to interpreted code. But it's meant for nbb/scittle, not standalone bb. And it still depends on the actual promesa `.cljc` underneath.
+3. **`java.util.concurrent.CompletableFuture` works natively in bb** — verified: `(.complete cf :done)`, `.get`, `.thenApply`, `.handle`, `.orTimeout` all work.
+
+### The Solution: Internal Promise Shim
+
+Create `src/mcp_toolkit/impl/promise.cljc` — a thin abstraction that maps to the right async model per platform:
+
+```
+              mcp-toolkit.impl.promise (6 functions)
+              ┌──────────────┬───────────┬─────────────┐
+              │ :clj (JVM)   │ :bb       │ :cljs       │ ─ future: :squint
+              ├──────────────┼───────────┼─────────────┤
+              │ promesa 11.x │ Completable │ Promesa    │ ─ future: js/Promise
+              │ + vthreads   │ Future    │ (via SCI)  │
+              └──────────────┴───────────┴─────────────┘
+```
+
+**Why not just use promesa everywhere?** It fails in SCI/bb. The shim is the bridge.
+**Why CompletableFuture for bb?** Native to bb, 1:1 mapping to promesa's API surface, virtual threads on JVM.
+
+### Promesa API Surface Audit
+
+Only **6 functions** used across **15 call sites** in **4 files**:
+
+| Function | Where | What |
+|----------|-------|------|
+| `p/create` | `json_rpc.cljc:105` | Build promise with resolve/reject fn |
+| `p/then` | `json_rpc.cljc:160,203,209` | Chain success (8 sites across 4 files) |
+| `p/handle` | `json_rpc.cljc:165` | Cleanup + passthrough (try/catch/finally pattern) |
+| `p/all` | `json_rpc.cljc:202` | Parallel batch requests |
+| `p/timeout` | `handler.cljc:78` | Tool call timeout |
+| `p/catch` | `handler.cljc:80,88` | Handler error catching |
+
+No `p/let`, `p/do`, `p/chain`, or macros. Just 6 runtime functions.
+
+### Shim Design
+
+```clojure
+(ns mcp-toolkit.impl.promise
+  "Internal promise abstraction — one API, three backends.
+   :clj → promesa 11 (JVM, virtual threads)
+   :bb  → java.util.concurrent.CompletableFuture (native in bb)
+   :cljs → promesa (ClojureScript, goog.Promise)
+   :squint → js/Promise (future)")
+```
+
+| Shim function | JVM (promesa) | BB (CompletableFuture) | CLJS (promesa) |
+|---|---|---|---|
+| `(create f)` | `(p/create f)` | `(let [cf (CompletableFuture.)] (try (f complete reject) (catch...)) cf)` | `(p/create f)` |
+| `(then p f)` | `(p/then p f)` | `(.thenApplyAsync p f)` | `(p/then p f)` |
+| `(then p f g)` | `(p/then p f g)` | `(.handleAsync p (fn [v e] (if e (g e) (f v))))` | `(p/then p f g)` |
+| `(catch- p f)` | `(p/catch p f)` | `(.exceptionally p f)` | `(p/catch p f)` |
+| `(handle p f)` | `(p/handle p f)` | `(.handleAsync p (fn [v e] (f v e)))` | `(p/handle p f)` |
+| `(all ps)` | `(p/all ps)` | `(.then (CompletableFuture/allOf ...) ...)` | `(p/all ps)` |
+| `(timeout p ms)` | `(p/timeout p ms)` | `(.orTimeout p ms TimeUnit/MILLISECONDS)` | `(p/timeout p ms)` |
+
+**Zero call-site changes.** Replace `[promesa.core :as p]` → `[mcp-toolkit.impl.promise :as p]` in 4 files.
+
+### JVM Strategy: Virtual Threads + Promesa
+
+On JVM, we keep promesa as the backing implementation. JDK 21 virtual threads mean promesa operations that block will use vthreads automatically. If we wanted to go further later, we could swap the `:clj` branch to a direct CompletableFuture wrapper with `defaultExecutor` set to `Thread/ofVirtual` — but promesa already benefits from vthreads when it calls `Thread.startVirtualThread` (which it does in newer versions for blocking operations).
+
+For **mcp-toolkit running standalone on JVM** (the unified server), the async model is:
+- Incoming HTTP requests → http-kit thread (pinned, but short-lived)
+- Tool execution → promises via promesa → handler fns run on ForkJoinPool
+- Virtual threads help most for I/O-bound tool handlers (API calls, DB queries)
+
+### Babashka Strategy: CompletableFuture Native
+
+On bb, `java.util.concurrent.CompletableFuture` is the async model:
+- bb includes the `java.util.concurrent` package fully
+- `.complete`, `.completeExceptionally`, `.get`, `.thenApplyAsync`, `.handleAsync`, `.orTimeout`, `.allOf` all verified working
+- bb's SCI can evaluate the shim's Java interop calls directly
+- No external dependency needed — bb ships with what we need
+
+### File Changes
+
+1. **NEW**: `src/mcp_toolkit/impl/promise.cljc` — the shim (40-60 lines)
+2. **EDIT**: `src/mcp_toolkit/json_rpc.cljc` — `[promesa.core :as p]` → `[mcp-toolkit.impl.promise :as p]`
+3. **EDIT**: `src/mcp_toolkit/server.cljc` — same import change
+4. **EDIT**: `src/mcp_toolkit/client.cljc` — same import change
+5. **EDIT**: `src/mcp_toolkit/impl/server/handler.cljc` — same import change
+6. **NEW**: `test/mcp_toolkit/promise_test.clj` — property-based tests for the shim
+
+### Tests: First Class
+
+The promise shim needs thorough testing because it replaces a critical abstraction:
+
+```clojure
+;; Unit tests: each shim function
+;; - create: resolves, rejects, handles exceptions in f
+;; - then: chains success, passes through rejection
+;; - then (2-arg): handles success, handles rejection with fallback
+;; - catch-: catches rejections, passes through success
+;; - handle: success path (no error), error path (with error)
+;; - all: all resolve, one rejects, empty collection
+;; - timeout: finishes before, finishes after, rejects with timeout
+
+;; Property tests (test.check):
+;; - then chain is associative: (-> p then f then g) ≡ (-> p then #(-> (f %) then g))
+;; - identity: (-> p then identity) ≡ p
+;; - catch identity: (-> p catch identity) preserves rejection
+;; - all identity: (all []) ≡ resolved nil
+;; - timeout monotonicity: (timeout p 100) always rejects before (timeout p 200)
+
+;; Integration tests (JVM + bb):
+;; - Promise shim works under bb (verified via bb -e)
+;; - Existing test suite still passes (no behavior change)
+;; - Tool call timeout works in both runtimes
+```
 
 ### Verification Steps
 
-1. Run existing tests under bb
-2. Check what breaks (if anything)
-3. Document any required changes
+1. Write the shim
+2. Write promise-specific tests (unit + property)
+3. Swap imports in 4 source files
+4. Run full existing test suite (52 tests must still pass)
+5. Run new promise tests
+6. Verify under bb: `bb -e "...shim test..."`
+7. Verify REPL-driven: load each changed ns, test each function
+8. `clj-kondo --lint src/` — clean
+9. `cljfmt fix src/` — formatted
+10. Commit snapshot
 
 ### Expected Outcome
 
-Babashka support should "just work" with minimal or no changes. Primary value is **documenting** it works and adding a Babashka example.
+- Promesa dependency stays for JVM/CLJS
+- CompletableFuture for bb (no new dependency)
+- Same API surface, zero behavior changes for JVM users
+- bb can now load mcp-toolkit as a plugin library
+- Foundation for Squint support (just adds `:squint` branch)
 
 ---
 
 ## 7. Phase 4: Squint Support
 
-### The Challenge: Native Promises
+### The Challenge
 
-Squint compiles ClojureScript to native JavaScript. It uses native `js/Promise`, not promesa.
-
-**The problem**: `mcp-toolkit` uses `promesa` functions throughout:
-- `p/create`, `p/then`, `p/catch`, `p/handle`, `p/all`
-
-### The Solution: Internal Promise Shim
-
-Create `src/mcp_toolkit/impl/promise.cljc`:
+Squint compiles ClojureScript syntax to native JavaScript. It uses native `js/Promise`, not promesa. The shim (`impl/promise.cljc`) will add `:squint` reader conditionals that map to `js/Promise`:
 
 ```clojure
-(ns mcp-toolkit.impl.promise
-  "Internal promise abstraction.
-   Dispatches to promesa on :clj/:cljs, native js/Promise on :squint."
-  #?(:clj  (:require [promesa.core :as p])
-     :cljs (:require [promesa.core :as p])))
-
 (defn create [f]
   #?(:squint  (js/Promise. f)
      :default (p/create f)))
@@ -640,32 +752,12 @@ Create `src/mcp_toolkit/impl/promise.cljc`:
 (defn then
   ([p f]
    #?(:squint  (.then p f)
-      :default (p/then p f)))
-  ([p f g]
-   #?(:squint  (.then p f g)
-      :default (p/then p f g))))
-
-(defn catch- [p f]
-  #?(:squint  (.catch p f)
-     :default (p/catch p f)))
-
-(defn handle [p f]
-  #?(:squint  (.then p (fn [v] (f v nil)) (fn [e] (f nil e)))
-     :default (p/handle p f)))
-
-(defn all [ps]
-  #?(:squint  (.then (js/Promise.all (to-array ps))
-                     (fn [arr] (vec (array-seq arr))))
-     :default (p/all ps)))
+      :default (p/then p f))))
 ```
 
-Swap `[promesa.core :as p]` → `[mcp-toolkit.impl.promise :as p]` in:
-- `src/mcp_toolkit/json_rpc.cljc`
-- `src/mcp_toolkit/server.cljc`
-- `src/mcp_toolkit/client.cljc`
-- `src/mcp_toolkit/impl/server/handler.cljc`
+Squint support is already partially addressed by the shim work — it just needs the `:squint` reader conditional branches added to `impl/promise.cljc`.
 
-**Zero call-site changes.** See `~/src/vamp/mcp-toolkit-squint-compat-spec.md` for the full spec.
+See `~/src/vamp/mcp-toolkit-squint-compat-spec.md` for the full Squint spec.
 
 ### Fork vs PR Strategy
 
@@ -1302,7 +1394,23 @@ Simple, sufficient for single-instance servers. The derived index gives O(1) loo
 
 ### Why Not Remove Promesa?
 
-Promesa remains a hard dependency for JVM/CLJS. The shim simply doesn't call it under Squint. This is zero breaking changes.
+Promesa is a mature, well-tested promise library with features we may leverage later (bulkhead, CSP channels, executors). The shim wraps it — promesa remains the JVM/CLJS backend. This is zero breaking changes.
+
+### Why Internal Promise Shim Instead of `#?(:bb ...)` at Call Sites?
+
+Six functions, fifteen call sites, four files. Two options:
+
+1. **Reader conditionals at every call site** — `#?(:clj (p/then x f) :bb (.thenApplyAsync x f))` — scatters platform branching throughout the codebase
+2. **Single shim namespace** — one `impl/promise.cljc` encapsulates platform differences, every call site remains `(p/then x f)`
+
+Option 2 wins. Simple, composable, zero call-site logic changes. Future: add `:squint` branch without touching consumers.
+
+### Why CompletableFuture for Babashka?
+
+- Native to bb — ships with `java.util.concurrent` package, zero dependencies needed
+- 1:1 mapping to our 6 promise functions — `complete`, `thenApplyAsync`, `handleAsync`, `exceptionally`, `orTimeout`, `allOf`
+- `.thenApplyAsync` uses ForkJoinPool.commonPool() — parallel execution without thread management overhead
+- On JVM (virtual threads), the `:clj` path still uses promesa — bb is the special case
 
 ### Why http-kit for Streamable HTTP?
 
@@ -1330,39 +1438,48 @@ This eliminates the privilege escalation vector of exposing sensitive tools to a
 
 ## 13. The Path Forward
 
+### Phase Status
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 1: Registry | ✅ Complete | Plugin registry, O(1) index, collision detection, Malli validation |
+| Phase 2: Streamable HTTP | ✅ Complete (spec-compliant) | POST/GET/DELETE, SSE, origin validation, tombstones, 24 HTTP tests |
+| Phase 3: Promise Shim + Babashka | 🔵 In progress — shim built, import swap done, tests pass | `impl/promise.cljc` with CompletableFuture for bb, promesa for JVM/CLJS |
+| Phase 4: Squint | 🟡 Future | Adding `:squint` branch to shim, trivial once shim exists |
+| Phase 5: Plugin Migration | 🟡 Next after Phase 3 | Convert pinboard-mcp → proof of concept, then others |
+| Phase 6: mcp-injector Integration | ⏳ Future | Remote, unified remote, in-process modes |
+
 ### Immediate (This Session)
 
-1. **Create `mcp-toolkit.registry`** — plugin registry with validation, O(1) index, collision detection in `swap!`
-2. **Add `munge-name`/`unmunge-name`** — namespaced keyword ↔ protocol string conversion
-3. **Update `create-session`** — accept `:registry` option, merge tools from registry
-4. **Update `tool-call-handler`** — route through registry index, add timeout support
+1. **Build `mcp-toolkit.impl.promise`** — promise shim with CompletableFuture for bb, promesa for JVM/CLJS
+2. **Write promise tests** — unit + property-based, first-class test coverage
+3. **Swap shim imports in 4 source files** — zero call-site changes
+4. **Verify under bb** — `bb -e` tests pass, existing behavior unchanged
+5. **Verify existing suite** — 52 tests still pass, no regressions
 
 ### Short-term (1-2 Weeks)
 
-5. **Add Streamable HTTP transport** — extract from art19-mcp pattern
-6. **Verify Babashka support** — run tests under bb
-7. **Add internal promise shim** — `mcp-toolkit.impl.promise`
-8. **Add property-based tests** — test.check for registry invariants
-9. **Migrate pinboard-mcp** — smallest server, proof of concept
-10. **Add `example/server-http/`** — working reference
+6. **Migrate pinboard-mcp** — smallest server, proof of concept for plugin pattern
+7. **Add `example/server-http/`** — working reference with babashka bb.edn
+8. **Document babashka compatibility** — `babashka-compatible` badge, CI verification
 
 ### Medium-term (1 Month)
 
-11. **Migrate art19-mcp** — plugin + standalone
-12. **Migrate podhome-mcp** — plugin + standalone
-13. **Migrate searxng-mcp** — plugin + standalone
-14. **Add mcp-injector plugin mode** — in-process plugin loading
-15. **Create mcp-injector MCP server** — split admin/standard plugins
-16. **Add observability** — structured logging, metrics hooks
+9. **Migrate art19-mcp** — plugin + standalone via mcp-toolkit
+10. **Migrate podhome-mcp** — plugin + standalone via mcp-toolkit
+11. **Migrate searxng-mcp** — plugin + standalone via mcp-toolkit
+12. **Add mcp-injector plugin mode** — in-process plugin loading
+13. **Create mcp-injector MCP server** — split admin/standard plugins
+14. **Add observability** — structured logging, metrics hooks
 
 ### Long-term (Ongoing)
 
-17. **Squint example** — `example/server-squint/`
-18. **Unified server** — load all plugins, one endpoint
-19. **Help Metosin maintain** — upstream PRs for registry + shim
-20. **Document the stack** — AGENTS.md, READMEs, migration guides
-21. **Token bloat mitigation** — tool groups, filtered `tools/list`
-22. **Cross-plugin tool calling** — dependency validation, context passing
+15. **Squint support** — `:squint` branch in promise shim, `js/Promise` backend
+16. **Unified server** — load all plugins, one endpoint
+17. **Help Metosin maintain** — upstream PRs for registry + shim
+18. **Document the stack** — AGENTS.md, READMEs, migration guides
+19. **Token bloat mitigation** — tool groups, filtered `tools/list`
+20. **Cross-plugin tool calling** — dependency validation, context passing
 
 ---
 

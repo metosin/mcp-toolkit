@@ -49,6 +49,43 @@
 
 ## Dev Log
 
+### Session: 2026-04-04 — Phase 3 Discovery + Promise Shim Design
+
+| Commit | What | Why |
+|--------|------|-----|
+| _(pending)_ | PLAN.md — Phase 3 rewrite, ecosystem inventory | Replaced incorrect "promesa works in bb" with CompletableFuture shim design |
+| _(pending)_ | PLAN.md — updated architecture decisions, path forward | Added "Why shim vs reader conditionals", phase status table |
+
+**Key research findings**:
+- **Promesa does NOT load in Babashka** — `extend-protocol clojure.core/Inst` fails in SCI (no `Inst` protocol)
+- **CompletableFuture works natively in bb** — verified: `.complete`, `.thenApply`, `.handle`, `.orTimeout`, `.allOf` all work
+- **Only 6 promesa functions used, 15 call sites** — `p/create`, `p/then`, `p/catch`, `p/handle`, `p/all`, `p/timeout`
+- **Virtual threads on JVM (JDK 21)** — no need to abandon promesa on JVM; ForkJoinPool → vthreads is automatic for I/O-bound handlers
+- **SCI got async/await in 2026** — CLJS-3470 implemented in SCI, but still uses JS Promises for nbb/scittle, not bb
+- **`babashka/sci.configs/funcool/promesa` exists** — SCI config for promesa functions, but meant for nbb/scittle, not standalone bb
+
+**Architecture decision**: Internal promise shim `mcp-toolkit.impl.promise`:
+- `:clj` → promesa 11 (JVM, virtual threads via ForkJoinPool)
+- `:bb` → `java.util.concurrent.CompletableFuture` (native in bb, zero deps)
+- `:cljs` → promesa (ClojureScript, goog.Promise)
+- `:squint` → `js/Promise` (future, trivial addition once shim exists)
+
+**Ecosystem inventory discovered**:
+- art19-mcp, podhome-mcp, pinboard-mcp, searxng-mcp — all Babashka, all Streamable HTTP
+- hedgedoc-mcp — Squint, STDIO
+- mcp-stdio-proxy — Clojure, STDIO bridge
+- mcp-injector — Clojure, HTTP consumer + future server
+
+**Decisions**:
+- Tests are first-class for the shim (unit + property-based)
+- Zero call-site changes — swap 4 imports, done
+- Squint support deferred to later, just adding `:squint` branch to shim
+- Plugin migration (Phase 5) is next after shim, starting with pinboard-mcp
+
+**Next**: Build `impl/promise.cljc`, write tests, swap imports, verify everything passes.
+
+---
+
 ### Session: 2026-04-03 — Plan Review & Architecture
 
 | Commit | What | Why |

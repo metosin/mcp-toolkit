@@ -2,7 +2,7 @@
   (:require [mcp-toolkit.json-rpc :as json-rpc]
             [mcp-toolkit.impl.common :refer [user-callback unmunge-name]]
             [mcp-toolkit.registry :as registry]
-            [promesa.core :as p]))
+            [mcp-toolkit.impl.promise :as p]))
 
 (defn ping-handler [_]
   {})

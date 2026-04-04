@@ -4,7 +4,7 @@
             [mcp-toolkit.impl.server.handler :as server.handler]
             [mcp-toolkit.impl.common :refer [user-callback munge-name]]
             [mcp-toolkit.registry :as registry]
-            [promesa.core :as p]))
+            [mcp-toolkit.impl.promise :as p]))
 
 ;;
 ;; Functions typically called from a prompt-fn or a tool-fn

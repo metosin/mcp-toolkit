@@ -135,7 +135,6 @@
                                       terminated))))
      (count (:terminated @store)))))
 
-
 (defn- json-response
   "Create a JSON HTTP response."
   ([status body]
