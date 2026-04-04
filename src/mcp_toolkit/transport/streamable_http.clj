@@ -61,10 +61,65 @@
 (defn create-session-store
   "Create an empty session store.
    Internal structure:
-     {:sessions   {sid {:created-at ts :last-active ts ...}}
-      :terminated {sid {:terminated-at ts}}}"
+     {:sessions   {sid {:created-at ts :last-active ts :sse-channels {ch-id {:counter (atom N)}}}}
+      :terminated {sid {:terminated-at ts}}
+      :pending-sse-messages {sid [{:jsonrpc ...} ...]}}"
   []
-  (atom {:sessions {} :terminated {}}))
+  (atom {:sessions {} :terminated {} :pending-sse-messages {}}))
+
+(defn- sse-event
+  "Format a JSON-RPC message as an SSE event with sequential ID."
+  [event-id message]
+  (str "id: " event-id "\nevent: message\ndata: " (json/generate-string message) "\n\n"))
+
+(defn push-notification!
+  "Push a JSON-RPC notification to all open SSE channels for a session.
+   If no SSE channel is open, queues the message for delivery when
+   a client reconnects via GET /mcp.
+
+   This is the public endpoint for server-initiated notifications
+   (tools/list_changed, resources/updated, logging/message, etc.)."
+  [session-store session-id message]
+  (when session-id
+    (let [{:keys [sessions]} @session-store
+          session (get sessions session-id)
+          channels (:sse-channels session)]
+      (if (seq channels)
+        (doseq [[ch-id {:keys [counter]}] channels]
+          (let [eid (swap! counter inc)]
+            (try
+              (http/send! ch-id (sse-event eid message) :text)
+              (catch Exception _ nil))))
+        (swap! session-store
+               update :pending-sse-messages
+               (fn [m] (update m session-id conj message)))))))
+
+(defn- drain-pending-messages!
+  "Send all pending SSE messages to the given channel. Registers the channel
+   in the session-store first, then drains the queue, leaving the channel
+   open for future push-notification! calls."
+  [session-store session-id channel]
+  (let [counter (atom 0)]
+    (swap! session-store
+           update-in [:sessions session-id :sse-channels]
+           assoc channel {:counter counter})
+    (let [pending (get (:pending-sse-messages @session-store) session-id)]
+      (when (seq pending)
+        (doseq [msg pending
+                :let [eid (swap! counter inc)]]
+          (try
+            (http/send! channel (sse-event eid msg) :text)
+            (catch Exception _ nil)))
+        (swap! session-store
+               (fn [state] (update state :pending-sse-messages dissoc session-id)))))
+    counter))
+
+(defn- deregister-sse-channel!
+  "Remove an SSE channel from the session store."
+  [session-store session-id channel]
+  (swap! session-store
+         update-in [:sessions session-id :sse-channels]
+         (fn [channels] (dissoc channels channel))))
 
 (defn create-session!
   "Create a new session and return its ID."
@@ -251,15 +306,15 @@
   "Handle GET /mcp — server→client SSE stream.
 
    Opens an SSE stream for server-initiated messages.
-   Supports Last-Event-ID for resumability."
+   Registers the channel in the session-store so push-notification!
+   can send to it. Drains any pending messages on connect."
   [request session-store allowed-origins]
   (if-not (validate-origin request allowed-origins)
     (json-response 403
                    {:jsonrpc "2.0"
                     :error {:code -32600
                             :message "Forbidden: invalid Origin header"}})
-    (let [session-id (find-header request "MCP-Session-Id")
-          last-event-id (find-header request "Last-Event-ID")]
+    (let [session-id (find-header request "MCP-Session-Id")]
       (cond
         (nil? session-id)
         (json-response 400 {:error "MCP-Session-Id header required for SSE stream"})
@@ -271,15 +326,11 @@
         (json-response 404 {:error "Session not found"})
 
         :else
-        ;; Open SSE channel
         (http/as-channel request
                          {:on-open (fn [ch]
-                                     (when last-event-id
-                                       (http/send! ch
-                                                   (str "id: " last-event-id "\ndata: \n\n")
-                                                   :text)))
-                          :on-close (fn [_ch _status]
-                                      nil)})))))
+                                     (drain-pending-messages! session-store session-id ch))
+                          :on-close (fn [ch _status]
+                                      (deregister-sse-channel! session-store session-id ch))})))))
 
 (defn- handle-delete
   "Handle DELETE /mcp — session termination.

@@ -197,9 +197,9 @@
 ;; ─── Session Store Lifecycle Tests ──────────────────────────────────────
 
 (deftest create-session-store-structure
-  (testing "create-session-store returns {:sessions {} :terminated {}}"
+  (testing "create-session-store returns {:sessions {} :terminated {} :pending-sse-messages {}}"
     (let [store (transport/create-session-store)]
-      (is (= {:sessions {} :terminated {}} @store)))))
+      (is (= {:sessions {} :terminated {} :pending-sse-messages {}} @store)))))
 
 (deftest create-session!-adds-to-sessions
   (testing "create-session! adds to :sessions"

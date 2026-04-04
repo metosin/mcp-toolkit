@@ -359,7 +359,8 @@
                         resources)]
     {;; About the server
      :server-supported-protocol-versions ["2024-11-05"
-                                          "2025-03-26"]
+                                          "2025-03-26"
+                                          "2025-11-25"]
      :server-info                        server-info
      :server-instructions                server-instructions
 
