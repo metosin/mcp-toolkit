@@ -736,6 +736,40 @@ The promise shim needs thorough testing because it replaces a critical abstracti
 - bb can now load mcp-toolkit as a plugin library
 - Foundation for Squint support (just adds `:squint` branch)
 
+### What Actually Happened
+
+The shim shipped and works. Key discoveries during build:
+
+- **GraalVM blocks BiFunction** — bb is a native-image, can't proxy `java.util.function.BiFunction`. Solved by composing `.thenApply` + `.exceptionally` (unary `Function` only).
+- **`#?` reader conditionals match `:clj` in bb** — bb's SCI matches the first compatible branch, and `:clj` is considered compatible. Solved by putting `:bb` first, using `#?@` splicing in `ns` forms, and `#?(:bb nil :default ...)` guards for JVM-only code.
+- **`.get` wraps exceptions in `ExecutionException`** — bb's `try/catch` doesn't unwrap. Solved by using `.join` instead.
+- **`p/then` 3-arg form doesn't exist in promesa** — it's `p/then` + `p/catch`, not a single call. The shim composes them.
+
+**Result**: 73 tests passing (52 original + 21 new promise tests + 6 property tests), 0 lint errors, bb smoke test verified.
+
+## Phase 2.5: Spec Compliance Gaps + Critical Fixes
+
+### Consultant Review Findings
+
+After agent review (code quality, upstream viability, test coverage), three critical bugs were found and fixed:
+
+1. **`client.cljc` — `request-tool-list` checked `:prompts` instead of `:tools`** — silent no-op when asking for tool list
+2. **`handler.cljc` — `resource-read-handler` returned error map inside `:result`** — FIXME resolved; now throws `ex-info` with `:json-rpc-error` metadata, caught by `route-message` and converted to proper JSON-RPC error response
+3. **`streamable_http.clj` — `create-handler` spawned a daemon thread per call** — unbounded thread leak; replaced with opt-in `prune-expired-sessions!` (caller-controlled lifecycle)
+
+### Protocol Version Mismatch
+
+- Server supports: `"2024-11-05"`, `"2025-03-26"`
+- Transport includes: `"2025-11-25"`
+- Gap: server capabilities negotiation doesn't match transport's supported versions
+- **Fix needed**: align `server.cljc`'s protocol version list with transport's
+
+### Known SSE Gap
+
+The GET `/mcp` SSE endpoint opens a channel but has no subscription mechanism or message queue. Server-initiated notifications (`notify-tool-list-changed`, etc.) cannot reach clients over SSE. This means the transport is POST-only functional — **not full spec compliance**.
+
+**Fix scope**: Add a per-session message queue (core.async channel or atom), wire notification handlers to push to the queue, drain queue into SSE stream.
+
 ---
 
 ## 7. Phase 4: Squint Support
@@ -1436,6 +1470,7 @@ This eliminates the privilege escalation vector of exposing sensitive tools to a
 
 ---
 
+
 ## 13. The Path Forward
 
 ### Phase Status
@@ -1443,44 +1478,67 @@ This eliminates the privilege escalation vector of exposing sensitive tools to a
 | Phase | Status | Notes |
 |-------|--------|-------|
 | Phase 1: Registry | ✅ Complete | Plugin registry, O(1) index, collision detection, Malli validation |
-| Phase 2: Streamable HTTP | ✅ Complete (spec-compliant) | POST/GET/DELETE, SSE, origin validation, tombstones, 24 HTTP tests |
-| Phase 3: Promise Shim + Babashka | 🔵 In progress — shim built, import swap done, tests pass | `impl/promise.cljc` with CompletableFuture for bb, promesa for JVM/CLJS |
-| Phase 4: Squint | 🟡 Future | Adding `:squint` branch to shim, trivial once shim exists |
-| Phase 5: Plugin Migration | 🟡 Next after Phase 3 | Convert pinboard-mcp → proof of concept, then others |
-| Phase 6: mcp-injector Integration | ⏳ Future | Remote, unified remote, in-process modes |
+| Phase 2: Streamable HTTP | ⚠️ Partially spec-compliant | POST works, GET/SSE is skeleton (no message push), DELETE works |
+| Phase 2.5: Spec Gaps + Bug Fixes | 🟢 Done | 3 critical bugs fixed, SSE gap documented, protocol mismatch identified |
+| Phase 3: Promise Shim + Babashka | 🟢 Complete | `impl/promise.cljc` ships, 73 tests pass, bb verified |
+| Phase 4: Squint | ⏳ Future | Adding `:squint` branch to shim, trivial once shim exists |
+| Phase 5: Plugin Migration | 🔵 Next priority | Pinboard-mcp → proof of concept (463 lines, smallest) |
+| Phase 6: mcp-injector Integration | ⏳ Future | Multipliers on zero are zero — need one working plugin first |
 
-### Immediate (This Session)
+### Consultant's Strategic Recommendations
 
-1. **Build `mcp-toolkit.impl.promise`** — promise shim with CompletableFuture for bb, promesa for JVM/CLJS
-2. **Write promise tests** — unit + property-based, first-class test coverage
-3. **Swap shim imports in 4 source files** — zero call-site changes
-4. **Verify under bb** — `bb -e` tests pass, existing behavior unchanged
-5. **Verify existing suite** — 52 tests still pass, no regressions
+1. **Fix SSE before claiming spec-compliance** — GET endpoint opens channel but never pushes messages. Half of Streamable HTTP is unimplemented.
+2. **Convert pinboard-mcp next** — the highest-impact work. Validates shim on real bb, exposes registry gaps, proves the architecture end-to-end. "Every hour on pinboard-mcp is worth 3 hours on theoretical design."
+3. **Open shim PR to metosin first** — small, non-breaking, solves real problem. Reduces fork delta if accepted.
+4. **Don't optimize for Phase 4-6 before Phase 5** — Squint, mcp-injector, observability are all multipliers. Multipliers on zero (no migrated plugins) are zero.
+5. **Keep the fork minimal** — shim + registry + transport. Nothing more. Upstream anything you can.
 
-### Short-term (1-2 Weeks)
+### Immediate Next Sprint
 
-6. **Migrate pinboard-mcp** — smallest server, proof of concept for plugin pattern
-7. **Add `example/server-http/`** — working reference with babashka bb.edn
-8. **Document babashka compatibility** — `babashka-compatible` badge, CI verification
+1. **Fix SSE message delivery** — per-session queue, notification push, drain to SSE stream. Make GET `/mcp` actually stream.
+2. **Align protocol versions** — `server.cljc` should support what `streamable_http.clj` advertises (include `"2025-11-25"`)
+3. **Migrate pinboard-mcp** — smallest server, proof of concept. Validate everything end-to-end.
 
-### Medium-term (1 Month)
+### Short-term (After SSE + Pinboard)
 
-9. **Migrate art19-mcp** — plugin + standalone via mcp-toolkit
-10. **Migrate podhome-mcp** — plugin + standalone via mcp-toolkit
-11. **Migrate searxng-mcp** — plugin + standalone via mcp-toolkit
-12. **Add mcp-injector plugin mode** — in-process plugin loading
-13. **Create mcp-injector MCP server** — split admin/standard plugins
-14. **Add observability** — structured logging, metrics hooks
+4. **Add example project** — `example/` with working bb.edn, server, plugin
+5. **Migrate art19-mcp** — ~1100 lines, biggest win (deletes transport boilerplate)
+6. **Migrate podhome-mcp** — follows art19 pattern, ~2 hours
+7. **End-to-end integration test** — start HTTP server, connect real client, call tool through plugins
 
-### Long-term (Ongoing)
+### Medium-term
 
-15. **Squint support** — `:squint` branch in promise shim, `js/Promise` backend
-16. **Unified server** — load all plugins, one endpoint
-17. **Help Metosin maintain** — upstream PRs for registry + shim
-18. **Document the stack** — AGENTS.md, READMEs, migration guides
-19. **Token bloat mitigation** — tool groups, filtered `tools/list`
-20. **Cross-plugin tool calling** — dependency validation, context passing
+8. **Migrate searxng-mcp** — plugin + standalone
+9. **Open shim PR to metosin** — if merged, fork delta shrinks significantly
+10. **Add mcp-injector plugin mode** — in-process loading
+11. **Pagination cursors** — tools/prompts/resources list handlers have `#_#_:nextCursor` commented out
 
+### Long-term
+
+12. **Squint support** — `:squint` branch in shim, `js/Promise` backend
+13. **mcp-injector as MCP server** — split admin/standard plugins
+14. **Unified server** — load all plugins, one endpoint
+15. **Token bloat mitigation** — tool groups, filtered `tools/list`
+16. **Cross-plugin tool calling** — dependency validation, context passing
+17. **Observability** — structured logging, metrics hooks
+
+### Branch Strategy
+
+| Branch | Purpose | Merge Target |
+|--------|---------|-------------|
+| `main` | Fork baseline (metosin upstream + registry + transport) | — |
+| `feat/streamablehttp` | Current work branch (Phase 1-3, bug fixes) | → `main` when clean |
+| `feat/sse-fix` | SSE message delivery implementation | → `feat/streamablehttp` or → `main` |
+| `feat/pinboard-migration` | Pinboard as first plugin | → `feat/streamablehttp` or → `example/` |
+| `feat/upstream-shim` | Promise shim PR candidate for metosin | → metosin/mcp-toolkit |
+
+**Merge checkpoints:**
+- ✅ Promise shim + bug fixes → ready to cut snapshot tag `v0.2.0`
+- ⏳ SSE fix → tag `v0.3.0` (first true spec-compliant release)
+- ⏳ Pinboard migration → `example/` directory with working plugin
+- ⏳ First end-to-end test → confidence milestone, ready for v0.4.0
+
+---
 ---
 
 ## References
@@ -1579,5 +1637,5 @@ These should be structurally guaranteed by the data model:
 
 ---
 
-_Plan updated: 2026-04-03_
+_Plan updated: 2026-04-04_
 _Related: vamp, art19-mcp, podhome-mcp, pinboard-mcp, searxng-mcp, mcp-injector, mcp-toolkit-squint-compat-spec.md_
