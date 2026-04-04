@@ -10,6 +10,8 @@
    - DELETE /mcp — session termination
    - Session management via MCP-Session-Id header
    - Origin validation (configurable, MUST for security)
+   - Protocol version validation
+   - Terminated session detection (tombstone)
    - Health check at /health
 
    Usage:
@@ -20,13 +22,32 @@
             [org.httpkit.server :as http]
             [cheshire.core :as json]))
 
+;; ─── Protocol Version ───────────────────────────────────────────────────────
+
+(def supported-protocol-versions
+  "Set of supported MCP protocol version strings."
+  #{"2024-11-05" "2025-06-18" "2025-11-25"})
+
+(defn- validate-protocol-version
+  "Validate the MCP-Protocol-Version header.
+   Returns nil if valid (or not provided — optional per spec),
+   or an error response map if invalid."
+  [request]
+  (let [version (get-in request [:headers :mcp-protocol-version])]
+    (when (and version (not (contains? supported-protocol-versions version)))
+      {:jsonrpc "2.0"
+       :error {:code -32600
+               :message (str "Unsupported protocol version: " version)}})))
+
 ;; ─── Session Store ──────────────────────────────────────────────────────────
 
 (defn create-session-store
   "Create an empty session store.
-   Internal structure: {session-id {:created-at timestamp :last-active timestamp}}"
+   Internal structure:
+     {:sessions   {sid {:created-at ts :last-active ts ...}}
+      :terminated {sid {:terminated-at ts}}}"
   []
-  (atom {}))
+  (atom {:sessions {} :terminated {}}))
 
 (defn create-session!
   "Create a new session and return its ID."
@@ -35,43 +56,67 @@
   ([store extra]
    (let [sid (str (java.util.UUID/randomUUID))
          now (System/currentTimeMillis)]
-     (swap! store assoc sid (merge {:created-at now :last-active now} extra))
+     (swap! store update :sessions assoc sid (merge {:created-at now :last-active now} extra))
      sid)))
 
 (defn valid-session?
-  "Check if a session ID is valid."
+  "Check if a session ID is in the active sessions map."
   [store sid]
-  (boolean (and sid (contains? @store sid))))
+  (boolean (and sid (contains? (:sessions @store) sid))))
+
+(defn terminated-session?
+  "Check if a session ID has been terminated (tombstoned)."
+  [store sid]
+  (boolean (and sid (contains? (:terminated @store) sid))))
 
 (defn touch-session!
   "Update the last-active timestamp for a session."
   [store sid]
   (when sid
-    (swap! store update-in [sid :last-active] (constantly (System/currentTimeMillis)))))
+    (swap! store update-in [:sessions sid :last-active]
+           (constantly (System/currentTimeMillis)))))
 
 (defn delete-session!
-  "Delete a session. Returns true if it existed."
+  "Terminate a session. Moves it from :sessions to :terminated (tombstone).
+
+   Returns:
+     :existed            — session was active and has been terminated
+     :already-terminated — session was already in the terminated map
+     :not-found          — session was never seen"
   [store sid]
-  (if (contains? @store sid)
-    (do (swap! store dissoc sid)
-        true)
-    false))
+  (if (nil? sid)
+    :not-found
+    (let [{:keys [sessions terminated]} @store
+          result (cond
+                   (contains? sessions sid) :existed
+                   (contains? terminated sid) :already-terminated
+                   :else :not-found)]
+      (case result
+        :existed
+        (swap! store (fn [s]
+                       (-> s
+                           (update :sessions dissoc sid)
+                           (assoc-in [:terminated sid] {:terminated-at (System/currentTimeMillis)}))))
+        (:already-terminated :not-found) nil)
+      result)))
 
 (defn prune-expired-sessions!
-  "Remove sessions older than ttl-ms. Returns count of removed sessions."
+  "Remove terminated sessions older than ttl-ms.
+   Returns count of remaining terminated sessions.
+   Does NOT remove active sessions — those should persist until explicitly deleted."
   ([store]
    (prune-expired-sessions! store (* 60 60 1000))) ; 1 hour default
   ([store ttl-ms]
-   (let [cutoff (- (System/currentTimeMillis) ttl-ms)
-         before (count @store)]
-     (swap! store (fn [sessions]
-                    (reduce-kv (fn [acc k v]
-                                 (if (< (:created-at v) cutoff)
-                                   acc
-                                   (assoc acc k v)))
-                               {}
-                               sessions)))
-     (- before (count @store)))))
+   (let [cutoff (- (System/currentTimeMillis) ttl-ms)]
+     (swap! store (fn [{:keys [terminated] :as state}]
+                    (assoc state :terminated
+                           (reduce-kv (fn [acc k v]
+                                        (if (< (:terminated-at v) cutoff)
+                                          acc
+                                          (assoc acc k v)))
+                                      {}
+                                      terminated))))
+     (count (:terminated @store)))))
 
 ;; ─── HTTP Helpers ───────────────────────────────────────────────────────────
 
@@ -129,48 +174,76 @@
       (or (nil? origin)
           (contains? (set allowed-origins) origin)))))
 
+;; ─── Dispatch Response Handling ─────────────────────────────────────────────
+
+(defn- handle-dispatch-response
+  "Handle the result of dispatching a message through the JSON-RPC handler.
+   Determines if the message was a request (has :id), notification, or response,
+   and returns an appropriate HTTP response.
+
+   - For requests: returns the JSON-RPC response as JSON (200)
+   - For notifications/responses: returns 202 Accepted"
+  [dispatch-result new-session? session-id]
+  (if (nil? dispatch-result)
+    ;; Notification or pure response — 202 Accepted
+    (accepted-response (when new-session? {"MCP-Session-Id" session-id}))
+    ;; JSON-RPC request got a response — return as JSON
+    (json-response 200 dispatch-result
+                   (when new-session? {"MCP-Session-Id" session-id}))))
+
 ;; ─── Request Handlers ───────────────────────────────────────────────────────
 
 (defn- handle-post
   "Handle POST /mcp — client→server messages.
 
-   For initialize: creates session, returns InitializeResult with MCP-Session-Id header.
-   For notifications/responses: returns 202 Accepted.
-   For requests: returns JSON response or opens SSE stream."
+   1. Validate Origin header
+   2. Validate MCP-Protocol-Version header
+   3. Parse JSON body
+   4. For initialize: creates session, returns InitializeResult with MCP-Session-Id
+   5. For other requests: validates session (checks terminated separately)
+   6. Dispatches through the provided dispatch-fn"
   [request dispatch-fn session-store allowed-origins]
   (if-not (validate-origin request allowed-origins)
     (json-response 403
                    {:jsonrpc "2.0"
                     :error {:code -32600
                             :message "Forbidden: invalid Origin header"}})
-    (let [body (parse-body request)]
-      (cond
-        (nil? body)
-        (json-response 400 {:error "Missing request body"})
+    ;; Check protocol version first
+    (if-let [version-error (validate-protocol-version request)]
+      (json-response 400 version-error)
+      (let [body (parse-body request)]
+        (cond
+          (nil? body)
+          (json-response 400 {:error "Missing request body"})
 
-        (= body :parse-error)
-        (json-response 400 {:error "Invalid JSON"})
+          (= body :parse-error)
+          (json-response 400 {:error "Invalid JSON"})
 
-        :else
-        (let [session-id (find-header request "MCP-Session-Id")
-              method (:method body)
-              new-session? (= method "initialize")
-              sid (if new-session?
-                    (create-session! session-store)
-                    session-id)]
+          :else
+          (let [session-id (find-header request "MCP-Session-Id")
+                method (:method body)
+                new-session? (= method "initialize")]
+            (if new-session?
+              ;; initialize — always create a new session
+              (let [sid (create-session! session-store)]
+                (touch-session! session-store sid)
+                (let [response (dispatch-fn body sid)]
+                  (handle-dispatch-response response true sid)))
+              ;; Non-initialize — session must exist or be terminated
+              (cond
+                (terminated-session? session-store session-id)
+                (json-response 404
+                               {:error "Session has been terminated"})
 
-          (if (and (not new-session?) (not (valid-session? session-store sid)))
-            (json-response 400
-                           {:error "Invalid or missing MCP-Session-Id"})
-            (do
-              (touch-session! session-store sid)
-              (let [response (dispatch-fn body sid)]
-                (if (nil? response)
-                  ;; Notification or response — 202 Accepted
-                  (accepted-response (when new-session? {"MCP-Session-Id" sid}))
-                  ;; Request — return JSON response with session header
-                  (json-response 200 response
-                                 (when new-session? {"MCP-Session-Id" sid})))))))))))
+                (not (valid-session? session-store session-id))
+                (json-response 400
+                               {:error "Invalid or missing MCP-Session-Id"})
+
+                :else
+                (do
+                  (touch-session! session-store session-id)
+                  (let [response (dispatch-fn body session-id)]
+                    (handle-dispatch-response response false session-id)))))))))))
 
 (defn- handle-get
   "Handle GET /mcp — server→client SSE stream.
@@ -185,32 +258,46 @@
                             :message "Forbidden: invalid Origin header"}})
     (let [session-id (find-header request "MCP-Session-Id")
           last-event-id (find-header request "Last-Event-ID")]
+      (cond
+        (nil? session-id)
+        (json-response 400 {:error "MCP-Session-Id header required for SSE stream"})
 
-      (if (and session-id (not (valid-session? session-store session-id)))
+        (terminated-session? session-store session-id)
+        (json-response 404 {:error "Session has been terminated"})
+
+        (not (valid-session? session-store session-id))
         (json-response 404 {:error "Session not found"})
+
+        :else
         ;; Open SSE channel
         (http/as-channel request
                          {:on-open (fn [ch]
-                      ;; Send priming event for resumability
                                      (when last-event-id
                                        (http/send! ch
                                                    (str "id: " last-event-id "\ndata: \n\n")
                                                    :text)))
                           :on-close (fn [_ch _status]
-                       ;; Session cleanup if needed
                                       nil)})))))
 
 (defn- handle-delete
   "Handle DELETE /mcp — session termination.
 
-   Removes the session from the store.
-   Returns 405 if the server doesn't allow client-initiated session termination."
+   Returns:
+     200 — session terminated successfully (or was already terminated)
+     400 — no MCP-Session-Id provided
+     404 — session never existed"
   [request session-store]
   (let [session-id (find-header request "MCP-Session-Id")]
     (if (nil? session-id)
       (json-response 400 {:error "MCP-Session-Id header required"})
-      (if (delete-session! session-store session-id)
+      (case (delete-session! session-store session-id)
+        :existed
         {:status 200 :headers {} :body ""}
+
+        :already-terminated
+        {:status 200 :headers {} :body ""}
+
+        :not-found
         (json-response 404 {:error "Session not found"})))))
 
 ;; ─── Public API ─────────────────────────────────────────────────────────────
