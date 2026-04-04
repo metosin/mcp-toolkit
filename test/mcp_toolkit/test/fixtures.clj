@@ -1,12 +1,11 @@
 (ns mcp-toolkit.test.fixtures
   "Test fixtures for mcp-toolkit.
    Provides reusable setup/teardown for registry, session store, and HTTP server tests."
-  (:require 
-            [mcp-toolkit.registry :as reg]
-            [mcp-toolkit.transport.streamable-http :as transport]
-            [org.httpkit.server :as http]
-            [cheshire.core :as json]
-            ))
+  (:require
+   [mcp-toolkit.registry :as reg]
+   [mcp-toolkit.transport.streamable-http :as transport]
+   [org.httpkit.server :as http]
+   [cheshire.core :as json]))
 
 ;; ─── Registry Fixtures ──────────────────────────────────────────────────────
 
@@ -68,20 +67,26 @@
   "Convenience: POST JSON to a handler."
   [handler uri body & [{:keys [headers]}]]
   (handler-response handler :post uri
-                    (merge {"Content-Type" "application/json"
-                            "Accept" "application/json, text/event-stream"}
-                           headers)
-                    body))
+                    {:headers (merge {"Content-Type" "application/json"
+                                      "Accept" "application/json, text/event-stream"}
+                                     headers)
+                     :body body}))
 
 (defn get-request
-  "Convenience: GET from a handler."
-  [handler uri & [{:keys [headers]}]]
-  (handler-response handler :get uri headers))
+  "Convenience: GET from a handler. Headers passed as flat map."
+  ([handler uri]
+   (handler-response handler :get uri {}))
+  ([handler uri headers]
+   (handler-response handler :get uri {:headers headers})))
 
 (defn delete-request
-  "Convenience: DELETE from a handler."
-  [handler uri & [{:keys [headers]}]]
-  (handler-response handler :delete uri headers))
+  "Convenience: DELETE from a handler. Headers passed as flat map."
+  ([handler uri]
+   (handler-response handler :delete uri {}))
+  ([handler uri headers]
+   (handler-response handler :delete uri {:headers headers})))
+
+;; (duplicate removed - see get-request for the new multi-arity versions)
 
 ;; ─── HTTP Server Fixture ────────────────────────────────────────────────────
 

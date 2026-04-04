@@ -28,13 +28,30 @@
   "Set of supported MCP protocol version strings."
   #{"2024-11-05" "2025-06-18" "2025-11-25"})
 
+;; ─── HTTP Helpers ───────────────────────────────────────────────────────────
+
+(defn- find-header
+  "Find an HTTP header by name (case-insensitive).
+   Handles both keyword and string keys, with any case."
+  [request header-name]
+  (let [headers (:headers request)
+        low-name (str/lower-case header-name)]
+    (or (get headers low-name)
+        (get headers (str header-name))
+        (get headers (keyword low-name))
+        (get headers (keyword header-name))
+        (some (fn [[k v]]
+                (when (= low-name (str/lower-case (name k)))
+                  v))
+              headers))))
+
 (defn- validate-protocol-version
   "Validate the MCP-Protocol-Version header.
    Returns nil if valid (or not provided — optional per spec),
    or an error response map if invalid."
   [request]
-  (let [version (get-in request [:headers :mcp-protocol-version])]
-    (when (and version (not (contains? supported-protocol-versions version)))
+  (when-let [version (find-header request "MCP-Protocol-Version")]
+    (when-not (contains? supported-protocol-versions version)
       {:jsonrpc "2.0"
        :error {:code -32600
                :message (str "Unsupported protocol version: " version)}})))
@@ -118,20 +135,6 @@
                                       terminated))))
      (count (:terminated @store)))))
 
-;; ─── HTTP Helpers ───────────────────────────────────────────────────────────
-
-(defn- find-header
-  "Find an HTTP header by name (case-insensitive).
-   http-kit lowercases header names, but we handle both cases."
-  [request header-name]
-  (let [headers (:headers request)
-        low-name (str/lower-case header-name)]
-    (or (get headers low-name)
-        (get headers (keyword low-name))
-        (some (fn [[k v]]
-                (when (= low-name (str/lower-case (name k)))
-                  v))
-              headers))))
 
 (defn- json-response
   "Create a JSON HTTP response."
