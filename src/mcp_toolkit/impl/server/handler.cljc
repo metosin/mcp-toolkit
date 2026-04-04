@@ -44,9 +44,12 @@
 (defn resource-read-handler [{:keys [session message]}]
   (let [{:keys [uri]} (:params message)]
     (if-some [resource (-> @session :resource-by-uri (get uri))]
-      {:contents [(select-keys resource [:uri :description :mimeType :text :blob])]} ; either text or blob
-      ;; FIXME: this is wrong because it will be interpreted as result data
-      (json-rpc/resource-not-found (:id message) uri))))
+      {:contents [(select-keys resource [:uri :description :mimeType :text :blob])]}
+      (throw (ex-info "Resource not found"
+                      {:json-rpc-error true
+                       :code -32002
+                       :message "Resource not found"
+                       :data {:uri uri}})))))
 
 (defn resource-templates-list-handler [{:keys [session]}]
   {:resourceTemplates (-> @session :resource-templates (or []))})
@@ -96,27 +99,27 @@
     (reset! is-cancelled-atom true)))
 
 (def handler-by-method-post-initialization
-  {"ping"                             ping-handler
-   "logging/setLevel"                 set-logging-level-handler
-   "completion/complete"              completion-complete-handler
-   "prompts/list"                     prompt-list-handler
-   "prompts/get"                      prompt-get-handler
-   "resources/list"                   resource-list-handler
-   "resources/read"                   resource-read-handler
-   "resources/templates/list"         resource-templates-list-handler
-   "resources/subscribe"              resource-subscribe-handler
-   "resources/unsubscribe"            resource-unsubscribe-handler
-   "tools/list"                       tool-list-handler
-   "tools/call"                       tool-call-handler
-   "notifications/cancelled"          cancelled-notification-handler
+  {"ping" ping-handler
+   "logging/setLevel" set-logging-level-handler
+   "completion/complete" completion-complete-handler
+   "prompts/list" prompt-list-handler
+   "prompts/get" prompt-get-handler
+   "resources/list" resource-list-handler
+   "resources/read" resource-read-handler
+   "resources/templates/list" resource-templates-list-handler
+   "resources/subscribe" resource-subscribe-handler
+   "resources/unsubscribe" resource-unsubscribe-handler
+   "tools/list" tool-list-handler
+   "tools/call" tool-call-handler
+   "notifications/cancelled" cancelled-notification-handler
    "notifications/roots/list_changed" (user-callback :on-client-root-list-changed)})
 
 ;; Initialization phase, a handshake where protocol versions are tentatively agreed.
 
 (defn initialize-handler [{:keys [session message]}]
   (let [{client-protocol-version :protocolVersion
-         client-info             :clientInfo
-         client-capabilities     :capabilities} (:params message)
+         client-info :clientInfo
+         client-capabilities :capabilities} (:params message)
         {:keys [server-info
                 server-supported-protocol-versions
                 server-instructions]} @session
@@ -128,12 +131,12 @@
            :client-info client-info
            :client-capabilities client-capabilities)
     (-> {:protocolVersion protocol-version
-         :capabilities {:logging     {}
+         :capabilities {:logging {}
                         :completions {}
-                        :prompts     {:listChanged true}
-                        :resources   {:subscribe   true
-                                      :listChanged true}
-                        :tools       {:listChanged true}}
+                        :prompts {:listChanged true}
+                        :resources {:subscribe true
+                                    :listChanged true}
+                        :tools {:listChanged true}}
          :serverInfo server-info}
         (cond-> (some? server-instructions) (assoc :instructions server-instructions)))))
 
@@ -144,6 +147,6 @@
   ((user-callback :on-initialized) context))
 
 (def handler-by-method-pre-initialization
-  {"ping"                      ping-handler
-   "initialize"                initialize-handler
+  {"ping" ping-handler
+   "initialize" initialize-handler
    "notifications/initialized" initialized-notification-handler})

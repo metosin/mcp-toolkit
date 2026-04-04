@@ -166,9 +166,34 @@
                             ;; Clean up, side effect
                             (swap! session update :is-cancelled-by-request-id dissoc id)
 
-                            ;; Pass through as if this p/handle was not there.
-                            ;; We avoided using p/finally because it does not allow chaining further promises.
-                            (or error result))))))))
+                            (cond
+                              @is-cancelled
+                              nil
+
+                              ;; error came from handler — build JSON-RPC error response
+                              error
+                              (if-let [data (ex-data error)]
+                                (if (:json-rpc-error data)
+                                  {:jsonrpc "2.0"
+                                   :error {:code (:code data -32000)
+                                           :message (:message data "Internal error")
+                                           :data (:data data)}
+                                   :id id}
+                                  ;; generic handler exception — internal error
+                                  {:jsonrpc "2.0"
+                                   :error {:code -32603
+                                           :message (.getMessage error)
+                                           :data {:type #?(:clj (str (class error)) :cljs (type error))}}
+                                   :id id})
+                                ;; exception has no data — internal error
+                                {:jsonrpc "2.0"
+                                 :error {:code -32603
+                                         :message (.getMessage error)
+                                         :data {:type #?(:clj (str (class error)) :cljs (type error))}}
+                                 :id id})
+
+                              ;; pass through result
+                              :else result))))))))
     ;; Method call response
     (if (and (contains? message :id)
              (or (contains? message :result)

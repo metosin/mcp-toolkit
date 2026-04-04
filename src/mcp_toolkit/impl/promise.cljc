@@ -60,7 +60,7 @@
               (into-array java.util.concurrent.CompletableFuture promises))
              (.thenApply
               (fn [_]
-                (mapv #(.get ^java.util.concurrent.CompletableFuture %)
+                (mapv #(.join ^java.util.concurrent.CompletableFuture %)
                       promises))))))
 
      (defn timeout

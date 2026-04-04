@@ -314,46 +314,36 @@
    Options:
      :session-store    — atom for session management (default: creates new one)
      :allowed-origins  — vector of allowed Origin headers (default: [] = allow all)
-     :session-ttl-ms   — session time-to-live in milliseconds (default: 3600000 = 1 hour)
 
-   Returns a function suitable for http-kit/run-server."
-  [dispatch-fn & [{:keys [session-store allowed-origins session-ttl-ms]
+   Returns a function suitable for http-kit/run-server.
+
+   Note: session pruning is NOT automatic. Call `prune-expired-sessions!`
+   periodically to reclaim terminated sessions:
+     (prune-expired-sessions! session-store session-ttl-ms)"
+  [dispatch-fn & [{:keys [session-store allowed-origins]
                    :or {session-store (create-session-store)
-                        allowed-origins []
-                        session-ttl-ms (* 60 60 1000)}}]]
-  ;; Start a background thread for session pruning
-  (let [pruning-thread (Thread.
-                        (fn []
-                          (while (not (.isInterrupted (Thread/currentThread)))
-                            (Thread/sleep (* 5 60 1000)) ; prune every 5 minutes
-                            (prune-expired-sessions! session-store session-ttl-ms))))]
-    (.setDaemon pruning-thread true)
-    (.start pruning-thread)
-
-    (fn [request]
-      (let [uri (:uri request)]
-        (cond
-          ;; MCP endpoint — handles POST, GET, DELETE
-          (or (= uri "/mcp") (= uri "/mcp/"))
-          (case (:request-method request)
-            :post (handle-post request dispatch-fn session-store allowed-origins)
-            :get (handle-get request session-store allowed-origins)
-            :delete (handle-delete request session-store)
-            {:status 405
-             :headers {"Content-Type" "text/plain"}
-             :body "Method Not Allowed"})
-
-          ;; Health check
-          (= uri "/health")
-          {:status 200
-           :headers {"Content-Type" "application/json"}
-           :body (json/generate-string {:status "ok"})}
-
-          ;; Not found
-          :else
-          {:status 404
+                        allowed-origins []}}]]
+  (fn [request]
+    (let [uri (:uri request)]
+      (cond
+        (or (= uri "/mcp") (= uri "/mcp/"))
+        (case (:request-method request)
+          :post (handle-post request dispatch-fn session-store allowed-origins)
+          :get (handle-get request session-store allowed-origins)
+          :delete (handle-delete request session-store)
+          {:status 405
            :headers {"Content-Type" "text/plain"}
-           :body "Not Found"})))))
+           :body "Method Not Allowed"})
+
+        (= uri "/health")
+        {:status 200
+         :headers {"Content-Type" "application/json"}
+         :body (json/generate-string {:status "ok"})}
+
+        :else
+        {:status 404
+         :headers {"Content-Type" "text/plain"}
+         :body "Not Found"}))))
 
 (defn run-server
   "Start an MCP server with Streamable HTTP transport.
