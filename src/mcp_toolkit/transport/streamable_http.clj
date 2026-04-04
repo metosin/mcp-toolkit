@@ -100,19 +100,20 @@
    in the session-store first, then drains the queue, leaving the channel
    open for future push-notification! calls."
   [session-store session-id channel]
-  (let [counter (atom 0)]
+  (let [counter (atom 0)
+        pending (get (:pending-sse-messages @session-store) session-id)]
     (swap! session-store
-           update-in [:sessions session-id :sse-channels]
-           assoc channel {:counter counter})
-    (let [pending (get (:pending-sse-messages @session-store) session-id)]
-      (when (seq pending)
-        (doseq [msg pending
-                :let [eid (swap! counter inc)]]
-          (try
-            (http/send! channel (sse-event eid msg) :text)
-            (catch Exception _ nil)))
-        (swap! session-store
-               (fn [state] (update state :pending-sse-messages dissoc session-id)))))
+           (fn [state]
+             (-> state
+                 (update-in [:sessions session-id :sse-channels]
+                            assoc channel {:counter counter})
+                 (update :pending-sse-messages dissoc session-id))))
+    (when (seq pending)
+      (doseq [msg pending
+              :let [eid (swap! counter inc)]]
+        (try
+          (http/send! channel (sse-event eid msg) :text)
+          (catch Exception _ nil))))
     counter))
 
 (defn deregister-sse-channel!

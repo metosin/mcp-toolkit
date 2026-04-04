@@ -317,7 +317,7 @@
     :or {client-info {:name "mcp-toolkit"
                       :version "0.1.1-alpha"}
          client-capabilities {:roots {:listChanged true}}
-         protocol-version "2025-03-26"
+         protocol-version "2025-11-25"
          on-initialized default-on-initialized
          on-server-prompt-list-changed request-prompt-list
          on-server-resource-list-changed request-resource-list

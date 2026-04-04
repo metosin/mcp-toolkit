@@ -112,13 +112,13 @@
                                               :method "initialize"
                                               :params {:clientInfo {:name "mcp-toolkit"
                                                                     :version "0.1.1-alpha"}
-                                                       :protocolVersion "2025-03-26"
+                                                       :protocolVersion "2025-11-25"
                                                        :capabilities {:roots {:listChanged true}}}
                                               :id 0}]
                                         [:<- {:jsonrpc "2.0"
                                               :result {:serverInfo {:name "mcp-toolkit"
                                                                     :version "0.1.1-alpha"}
-                                                       :protocolVersion "2025-03-26"
+                                                       :protocolVersion "2025-11-25"
                                                        :capabilities {:logging {}
                                                                       :completions {}
                                                                       :prompts {:listChanged true}
