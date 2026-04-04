@@ -16,16 +16,13 @@ Tested on Claude Desktop and Claude Code, no problems found for the features imp
 ## Implemented features
 
 - [x] API for both clients & servers
-- [x] CLJC
-  - [x] Clojure
-  - [x] Clojurescript
-  - [ ] Babashka
+- [x] CLJC — Clojure, Clojurescript, **Babashka**
 - I/O agnostic library
-- Uses Promesa to support async tasks in prompts, resources and tools
+- Uses internal promise shim for async (promesa on JVM/CLJS, CompletableFuture on Babashka)
 - Compatible with protocol versions
   - [x] `2024-11-05`
-  - [x] `2025-03-26`
-  - [ ] `2025-06-18` (not yet)
+  - [x] `2025-06-18`
+  - [x] `2025-11-25`
 - MCP features implemented
   - [x] Cancellation
   - [x] Ping
@@ -38,11 +35,13 @@ Tested on Claude Desktop and Claude Code, no problems found for the features imp
   - [x] Completion
   - [x] Logging
   - [ ] Pagination
+- **NEW**: Plugin registry with O(1) tool index, collision detection, Malli validation
+- **NEW**: Streamable HTTP transport (MCP 2025-11-25 spec)
 - [Example projects](example)
   - [x] [CLJC server using STDIO](example/cljc-server-stdio)
   - [x] [CLJC client using STDIO](example/cljc-client-stdio)
   - [x] [CLJ server using HTTP/SSE](example/clj-server-sse)
-  - [ ] CLJ server using Streamable HTTP (PR welcome)
+  - [x] **CLJ server using Streamable HTTP** — built-in (`mcp-toolkit.transport.streamable-http`)
 
 ## Usage
 
