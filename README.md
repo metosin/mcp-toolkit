@@ -76,6 +76,18 @@ It is typically used for building general purpose MCP stuffs.
 - [Clojure MCP](https://github.com/bhauman/clojure-mcp)
 - [Modex](https://github.com/theronic/modex)
 
+## Contributing
+
+Only code **typed and reviewed by a human** will be accepted for review, discussion, and maybe merged.
+We have a policy of keeping the source code clean, organized, and easy to read for a human.
+
+Advices for improving the chances for your PR to be accepted:
+- Keep your PR small and in line with an associated Github issue.
+- If you plan some significant changes, it's best to discuss them in an issue first,
+  to keep the contribution aligned with the technical direction of project.
+- Do not reformat the source code unless you found a formatting issue,
+  in which case you should use a separate PR just for that.
+
 ## License
 
 This project is distributed under the [Eclipse Public License v2.0](LICENSE.txt).
